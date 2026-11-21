@@ -2,7 +2,7 @@
   'use strict'
 
 /* ============================================================
- * DeepSeek 鲸鱼娘 · 悬浮球皮肤插件 v1.4.0
+ * DeepSeek 鲸鱼娘 · 悬浮球皮肤插件 v1.4.1
  * ------------------------------------------------------------
  * 复用 AiOrb.registerSkin/setSkin，不改悬浮球核心。桌面与预览共用同一渲染器。
  * 角色使用开源社区的 Q 版女仆鲸鱼娘动作图集，不是另画的替代形象。
@@ -22,13 +22,13 @@ let SKIN_KEY = 'deepseek-whale-muse'
  * 从独立仓 CTRL66666/yali-extensions 拉固定 tag 版本 —— 用 tag 而不是 @main，
  * 避免上游一改动就影响到线上用户。tag 与市场登记的 version 必须一起改。
  *
- * 【v1.4.0 多源兜底 · 实测结论，别再改回单一 cdn.jsdelivr.net】
+ * 【v1.4.1 多源兜底 · 实测结论，别再改回单一 cdn.jsdelivr.net】
  * 实测 cdn.jsdelivr.net 请求大素材（1.7MB）时会 301 到 raw.githubusercontent.com，
  * 而后者在国内网络**会超时**（30s 只下到 622KB 就断）—— 皮肤只剩一个透明壳，
  * 而且不报错、控制台干净。testingcf / gcore 两个节点实测能直出完整文件（0 跳转）。
  * 所以改成逐 host 探测：谁真能出图就用谁，并把结果记进 localStorage 下次优先用。
  * ------------------------------------------------------------ */
-let EXT_PATH = 'CTRL66666/yali-extensions@v1.4.0/assets/whale-muse-assets/'
+let EXT_PATH = 'CTRL66666/yali-extensions@v1.4.1/assets/whale-muse-assets/'
 let CDN_HOSTS = [
   'https://testingcf.jsdelivr.net/gh/',
   'https://gcore.jsdelivr.net/gh/',
@@ -37,6 +37,7 @@ let CDN_HOSTS = [
 let FILE_FULL = 'pet-dafeiyu.webp'
 let FILE_IB = 'pet-dafeiyu-inbetweens.webp'
 let FILE_TINY = 'pet-dafeiyu-tiny.webp'
+let FILE_IB_TINY = 'pet-dafeiyu-inbetweens-tiny.webp'
 let HOST_CACHE_KEY = 'kaoyan_whale_muse_cdn_v1'
 let PROBE_MS = 9000
 let FULL_MS = 45000
@@ -189,7 +190,11 @@ function mountWhale(host, _ctx) {
   let oldWidth = host.style.width, oldHeight = host.style.height
   /* 素材地址由 bootAssets 探测后填入；未就绪时图层为空，皮肤透明但不报错 ——
    * 悬浮球本身不依赖皮肤，宁可没图也不能把悬浮球拖挂。 */
-  let url = '', inbetweenUrl = '', lastFrame = null
+  /* tinyAtlas / tinyIb 是**同步**就位的高清占位（各 6×7 / 4×1，几何与正式图集一致），
+   * url / inbetweenUrl 是异步加载完成后替换上来的正式素材。
+   * 先同步上占位再异步升级 —— 否则"等探测出可用 host 才画第一笔"，
+   * 弱网下角色会有几秒空白。 */
+  let url = '', inbetweenUrl = '', tinyAtlas = '', tinyIb = '', lastFrame = null
   /* 图集几何同时写在实例上：即使外部样式被覆盖，也不会把整张原图直接铺出来。 */
   function paint(u) {
     layers.forEach(function (sprite) {
@@ -232,8 +237,9 @@ function mountWhale(host, _ctx) {
     root.setAttribute('data-frame-source', extra ? 'drawn' : 'atlas')
     let next = hasFrame ? 1 - front : front
     let incoming = layers[next], outgoing = layers[1 - next]
-    /* 素材未就位时写 url("") 会让浏览器把页面地址当图片请求（无谓报错），改成 none。 */
-    let frameUrl = extra ? inbetweenUrl : url
+    /* 正式素材没到就先用同几何的占位图；两者都没有才写 none
+     * （写 url("") 会让浏览器把页面地址当图片请求，产生无谓报错）。 */
+    let frameUrl = extra ? (inbetweenUrl || tinyIb) : (url || tinyAtlas)
     incoming.style.backgroundImage = frameUrl ? 'url("' + frameUrl + '")' : 'none'
     incoming.style.backgroundSize = extra ? '400% 100%' : '600% 700%'
     incoming.style.backgroundPosition = pos
@@ -335,9 +341,16 @@ function mountWhale(host, _ctx) {
   /* 素材引导：探 host → 低清占位（~72KB，先出角色）→ 高清升级（~934KB）。
    * 低清图既是探针也是首帧，所以首屏只多花一次小请求，不会白等大图。 */
   function bootAssets() {
-    let hit = readHostCache()
-    if (hit) paint(assetUrl(hit, FILE_TINY))
+    /* 没有命中记录时乐观地先用首选 host：浏览器立刻开始下占位图，
+     * 探测失败再换下一个 host 重画，不把首帧拖到探测结束之后。 */
+    let hit = readHostCache() || CDN_HOSTS[0]
+    setTiny(hit)
     step(0)
+    function setTiny(host) {
+      tinyAtlas = assetUrl(host, FILE_TINY)
+      tinyIb = assetUrl(host, FILE_IB_TINY)
+      if (!url) paint(tinyAtlas)
+    }
     function ordered() {
       let list = CDN_HOSTS.slice()
       let at = list.indexOf(hit)
@@ -358,7 +371,7 @@ function mountWhale(host, _ctx) {
     function adopt(host) {
       hit = host
       writeHostCache(host)
-      paint(assetUrl(host, FILE_TINY))
+      setTiny(host)
       let full = assetUrl(host, FILE_FULL)
       loadImage(full, FULL_MS).then(function (ok) {
         if (disposed || !ok) return
@@ -455,7 +468,7 @@ let EXTRA_MOVES = [['wave', '元气挥手'], ['rice', '吃白饭'], ['spin', '�
 PluginBus.register({
   id: PLUGIN_ID,
   name: 'DeepSeek 鲸鱼娘 · 原版',
-  version: '1.4.0',
+  version: '1.4.1',
   author: '内置 · 非官方同人',
   desc: '开源 Q 版女仆鲸鱼娘：56–168 px 尺寸调节、五种状态、六种互动，以及 4 张新增补画中间帧过渡。',
   init: function () { registerWhale() },

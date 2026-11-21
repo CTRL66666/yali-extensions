@@ -37,7 +37,7 @@ https://cdn.jsdelivr.net/gh/CTRL66666/yali-extensions@main/plugins/<file>.plugin
 https://raw.githubusercontent.com/CTRL66666/yali-extensions/main/plugins/<file>.plugin.js
 ```
 
-> 版本建议：生产环境尽量用**固定 tag**（`@v1.4.0`）而不是 `@main`，
+> 版本建议：生产环境尽量用**固定 tag**（`@v1.4.1`）而不是 `@main`，
 > 避免上游改动直接影响到线上用户。
 
 ## ⚠ 大文件必须多源兜底（踩过的坑）
@@ -62,7 +62,7 @@ https://raw.githubusercontent.com/CTRL66666/yali-extensions/main/plugins/<file>.
 
 | id | 名称 | 版本 | 说明 |
 |---|---|---|---|
-| `deepseek-whale-muse` | DeepSeek 鲸鱼娘 · 原版 | 1.4.0 | 社区 Q 版女仆鲸鱼娘悬浮球皮肤：56–168px 尺寸调节、本地记忆、五态与六种互动、手排原画真帧过渡 |
+| `deepseek-whale-muse` | DeepSeek 鲸鱼娘 · 原版 | 1.4.1 | 社区 Q 版女仆鲸鱼娘悬浮球皮肤：56–168px 尺寸调节、本地记忆、五态与六种互动、手排原画真帧过渡 |
 
 ### deepseek-whale-muse 素材交付策略
 
@@ -72,6 +72,7 @@ https://raw.githubusercontent.com/CTRL66666/yali-extensions/main/plugins/<file>.
 | 文件 | 尺寸 | 体积 | 用途 |
 |---|---|---|---|
 | `pet-dafeiyu-tiny.webp` | 324×504（54×72/格） | 72 KB | 探针 + 首屏占位，先出角色 |
+| `pet-dafeiyu-inbetweens-tiny.webp` | 216×72（54×72/格） | 8 KB | 过渡帧占位（同几何，桥接动画不缺图） |
 | `pet-dafeiyu.webp` | 1728×2688（288×384/格） | 934 KB | 高清图集，加载完替换占位 |
 | `pet-dafeiyu-inbetweens.webp` | 1152×384（288×384/格） | 91 KB | 过渡帧（原 PNG 709KB，换 WebP 后 -87%） |
 
