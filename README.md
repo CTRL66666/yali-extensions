@@ -58,11 +58,46 @@ https://raw.githubusercontent.com/CTRL66666/yali-extensions/main/plugins/<file>.
 **约定**：插件加载素材时按 `testingcf → gcore → cdn` 顺序逐个探测，
 谁先出图用谁，结果写进 `localStorage`；不要写死单一域名。
 
-## 插件清单
+## 插件清单（市场的全部插件都在这里）
 
-| id | 名称 | 版本 | 说明 |
+**2026-11-21 起，插件市场里的每一支插件都从本仓拉取** —— 站点本体不再内联任何插件源码，
+也不再在 `public/plugins/` 存放副本。市场登记只剩元数据（id / 名称 / 版本 / 拉取地址）。
+
+共 28 支（含 4 支历史下架件，仍保留源码以便追溯与重装）：
+
+| id | 名称 | 版本 | 状态 |
 |---|---|---|---|
-| `deepseek-whale-muse` | DeepSeek 鲸鱼娘 · 原版 | 1.4.1 | 社区 Q 版女仆鲸鱼娘悬浮球皮肤：56–168px 尺寸调节、本地记忆、五态与六种互动、手排原画真帧过渡 |
+| `anki-exporter` | Anki 导出器 | 1.0 | 在架 |
+| `async-form-action` | 异步表单动作 | 1.0 | 在架 |
+| `daily-boost` | 今日动力面板 | 1.0 | 在架 |
+| `daily-mistake-drill` | 每日错题唤醒 | 1.0 | 在架 |
+| `deepseek-whale-muse` | DeepSeek 鲸鱼娘 · 原版 | 1.4.1 | 在架 |
+| `duel-arena` | 博弈刷题场 | 1.4.7 | 在架 |
+| `ear-radio` | 磨耳朵电台 | 1.1.4 | 在架 |
+| `feynman-crystal` | 费曼晶体 | 1.4.7 | 在架 |
+| `formula-vault` | 公式军火库 | 1.3.10 | 在架 |
+| `insight-plugin` | 学习洞察 | 1.0 | 在架 |
+| `interview-sim` | 复试模拟舱 | 1.7.4 | 在架 |
+| `memo-deck` | 记忆宫殿 · 闪卡 | 1.6.7 | 在架 |
+| `orb-skin-lab` | 悬浮球换装实验室 | 2.0 | 在架 |
+| `pacing-dojo` | 时钟道场 | 1.3.0 | 在架 |
+| `paper-extract` | 试卷提取 | 1.7.9 | 在架 |
+| `pdf-digest` | PDF 精读提炼 | 1.1 | 在架 |
+| `prof-workshop` | 出题家 | 1.2.0 | 在架 |
+| `proof-pathfinder` | 证明寻路者 | 3.0.0 | 在架 |
+| `scoring-forge` | 采分点熔炉 | 1.5.5 | 在架 |
+| `socratic-mode` | 苏格拉底追问模式 | 1.0 | 在架 |
+| `storage-doctor` | 存储体检 | 2.0 | 在架 |
+| `variant-forge` | 变式题工厂 | 1.4.2 | 在架 |
+| `wuzhongxiang-strict` | 武忠祥·严谨避坑人格 | 1.2 | 在架 |
+| `zhangyu-3x` | 张宇·三向解题人格 | 2.3 | 在架 |
+| `countdown-desk` | 倒计时桌面 | 1.2 | 已下架 |
+| `english-sentence` | 高分句型管家 | 1.0 | 已下架 |
+| `pomodoro-pro` | 番茄钟计时器 Pro | 1.1 | 已下架 |
+| `sprint-kicker` | 组卷冲刺鼓手 | 1.0 | 已下架 |
+
+> 内联时代留下的 `src/core/pluginSrc/*.js`（`?raw` 引入）与 `public/plugins/*.plugin.js`
+> 已一并迁入本仓，本体侧删除。
 
 ### deepseek-whale-muse 素材交付策略
 
@@ -85,3 +120,13 @@ https://raw.githubusercontent.com/CTRL66666/yali-extensions/main/plugins/<file>.
 
 `assets/whale-muse-assets/` 内的图集遵循 **CC BY-NC-SA 4.0**（见同目录 `CC-BY-NC-SA-4.0.txt`），
 原始出处与作者署名见 `UPSTREAM-NOTICE.txt`。**商用前必须先读这两份文件。**
+
+## 发版与 tag 约定
+
+- 站点通过**固定 tag** 拉取（不用 `@main`），所以改任何一支插件都要打新 tag：
+  `git tag v1.5.1 && git push origin main --tags`，再改本体 `pluginCenterData.ts` 里的 `EXT_CDN` tag 一处。
+- **tag 不可原地改**：jsDelivr 对 tag 是不可变缓存，改了就升版本号。
+- 插件自己的 `version`（源码里 `let VERSION` 或 `register({ version })`）必须与市场登记一致，
+  本体的 `market-version-drift` 门禁会拿 `tests/vendor/ext-plugins/` 快照比对。
+- 素材（图集等）可以钉在"它最后一次变更的 tag"上，不必跟着每次代码 tag 变 ——
+  鲸鱼娘就是 `assets` 钉在 `@v1.4.1`，代码走 `@v1.5.0`。
