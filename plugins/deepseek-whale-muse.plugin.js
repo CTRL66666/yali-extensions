@@ -19,7 +19,7 @@ let SKIN_KEY = 'deepseek-whale-muse'
 /* 【2026-11-21 迁到扩展仓】素材不再随站点部署（本体仓不放插件资源），
  * 改为从 jsDelivr 拉固定 tag 版本 —— 用 tag 而不是 @main，
  * 避免上游一改动就影响到线上用户。base 与插件版本同步更新（见市场登记的 version）。 */
-let CDN_BASE = 'https://cdn.jsdelivr.net/gh/CTRL66666/yali-extensions@v1.2.1/assets/whale-muse-assets/'
+let CDN_BASE = 'https://cdn.jsdelivr.net/gh/CTRL66666/yali-extensions@v1.3.0/assets/whale-muse-assets/'
 let ATLAS_PATH = CDN_BASE + 'pet-dafeiyu.webp'
 let INBETWEEN_PATH = CDN_BASE + 'pet-dafeiyu-inbetweens.png'
 let SIZE_KEY = 'kaoyan_whale_muse_size_v1'
