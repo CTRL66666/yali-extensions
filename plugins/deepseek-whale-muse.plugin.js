@@ -2,7 +2,7 @@
   'use strict'
 
 /* ============================================================
- * DeepSeek 鲸鱼娘 · 悬浮球皮肤插件 v1.3.0
+ * DeepSeek 鲸鱼娘 · 悬浮球皮肤插件 v1.4.0
  * ------------------------------------------------------------
  * 复用 AiOrb.registerSkin/setSkin，不改悬浮球核心。桌面与预览共用同一渲染器。
  * 角色使用开源社区的 Q 版女仆鲸鱼娘动作图集，不是另画的替代形象。
@@ -11,17 +11,35 @@
  * 图集为该项目对其上游 Q 版形象的重绘；原始角色「溟月」：上善无形；
  * DeepSeek 女仆元素二创：ZipZipPipe；Q 版原型：这个刀子真甜。
  * 美术遵循 CC BY-NC-SA 4.0：署名、非商业、相同方式共享。完整上游 NOTICE 与许可
- * 随素材放在 public/plugins/whale-muse-assets/。本插件为非官方同人作品。
+ * 随素材放在扩展仓 yali-extensions 的 assets/whale-muse-assets/。本插件为非官方同人作品。
+ *
+ * 素材仍在扩展仓，不进站点本体（public/ 下的东西会被 Vite 无条件拷进 dist）。
  * ============================================================ */
 
 let PLUGIN_ID = 'deepseek-whale-muse'
 let SKIN_KEY = 'deepseek-whale-muse'
 /* 【2026-11-21 迁到扩展仓】素材不再随站点部署（本体仓不放插件资源），
- * 改为从 jsDelivr 拉固定 tag 版本 —— 用 tag 而不是 @main，
- * 避免上游一改动就影响到线上用户。base 与插件版本同步更新（见市场登记的 version）。 */
-let CDN_BASE = 'https://cdn.jsdelivr.net/gh/CTRL66666/yali-extensions@v1.3.0/assets/whale-muse-assets/'
-let ATLAS_PATH = CDN_BASE + 'pet-dafeiyu.webp'
-let INBETWEEN_PATH = CDN_BASE + 'pet-dafeiyu-inbetweens.png'
+ * 从独立仓 CTRL66666/yali-extensions 拉固定 tag 版本 —— 用 tag 而不是 @main，
+ * 避免上游一改动就影响到线上用户。tag 与市场登记的 version 必须一起改。
+ *
+ * 【v1.4.0 多源兜底 · 实测结论，别再改回单一 cdn.jsdelivr.net】
+ * 实测 cdn.jsdelivr.net 请求大素材（1.7MB）时会 301 到 raw.githubusercontent.com，
+ * 而后者在国内网络**会超时**（30s 只下到 622KB 就断）—— 皮肤只剩一个透明壳，
+ * 而且不报错、控制台干净。testingcf / gcore 两个节点实测能直出完整文件（0 跳转）。
+ * 所以改成逐 host 探测：谁真能出图就用谁，并把结果记进 localStorage 下次优先用。
+ * ------------------------------------------------------------ */
+let EXT_PATH = 'CTRL66666/yali-extensions@v1.4.0/assets/whale-muse-assets/'
+let CDN_HOSTS = [
+  'https://testingcf.jsdelivr.net/gh/',
+  'https://gcore.jsdelivr.net/gh/',
+  'https://cdn.jsdelivr.net/gh/'
+]
+let FILE_FULL = 'pet-dafeiyu.webp'
+let FILE_IB = 'pet-dafeiyu-inbetweens.webp'
+let FILE_TINY = 'pet-dafeiyu-tiny.webp'
+let HOST_CACHE_KEY = 'kaoyan_whale_muse_cdn_v1'
+let PROBE_MS = 9000
+let FULL_MS = 45000
 let SIZE_KEY = 'kaoyan_whale_muse_size_v1'
 let SIZE_MIN = 56, SIZE_MAX = 168, SIZE_DEFAULT = 96
 let BRIDGE_MS = 105, BRIDGE_FADE = 65
@@ -31,9 +49,28 @@ let MARK_TILE = '<svg viewBox="0 0 48 48" width="1em" height="1em" aria-hidden="
   + '<path d="M9 26c2-8 10-12 18-8 3-5 7-6 10-5-1 3-1 6 1 8-3 1-6 0-8-2-2 8-10 13-18 9l-5 4 1-7c-1-1-1-2-1-3z" fill="#fff"/>'
   + '<circle cx="18" cy="22" r="1.5" fill="#3154B8"/></svg>'
 
-function atlasUrl(path) {
-  let asset = path || ATLAS_PATH
-  try { return new URL(asset, document.baseURI || window.location.href).href } catch (e) { return asset }
+function assetUrl(host, file) { return host + EXT_PATH + file }
+function readHostCache() {
+  try {
+    let v = localStorage.getItem(HOST_CACHE_KEY)
+    if (v && CDN_HOSTS.indexOf(v) >= 0) return v
+  } catch (e) { }
+  return ''
+}
+function writeHostCache(host) {
+  try { localStorage.setItem(HOST_CACHE_KEY, host) } catch (e) { }
+}
+/* 探针就是低清图本身：哪个 host 能出图，就顺手把它当首帧占位，不做无用请求。
+ * 超时也算失败 —— 国内网络对坏节点是「无限等待」而不是快速报错。 */
+function loadImage(url, ms) {
+  return new Promise(function (resolve) {
+    if (!url) return resolve(false)
+    let img = new Image(), done = false
+    let timer = setTimeout(function () { if (done) return; done = true; resolve(false) }, ms)
+    img.onload = function () { if (done) return; done = true; clearTimeout(timer); resolve(true) }
+    img.onerror = function () { if (done) return; done = true; clearTimeout(timer); resolve(false) }
+    img.src = url
+  })
 }
 
 let SKIN_CSS = `
@@ -150,13 +187,18 @@ function mountWhale(host, _ctx) {
   if (!root || layers.length !== 2) { host.innerHTML = ''; return emptyHandle() }
   let desktop = host.id === 'copilot-fab'
   let oldWidth = host.style.width, oldHeight = host.style.height
-  let url = atlasUrl(), inbetweenUrl = atlasUrl(INBETWEEN_PATH)
+  /* 素材地址由 bootAssets 探测后填入；未就绪时图层为空，皮肤透明但不报错 ——
+   * 悬浮球本身不依赖皮肤，宁可没图也不能把悬浮球拖挂。 */
+  let url = '', inbetweenUrl = '', lastFrame = null
   /* 图集几何同时写在实例上：即使外部样式被覆盖，也不会把整张原图直接铺出来。 */
-  layers.forEach(function (sprite) {
-    sprite.style.backgroundImage = 'url("' + url + '")'
-    sprite.style.backgroundSize = '600% 700%'
-    sprite.style.backgroundRepeat = 'no-repeat'
-  })
+  function paint(u) {
+    layers.forEach(function (sprite) {
+      sprite.style.backgroundImage = u ? 'url("' + u + '")' : 'none'
+      sprite.style.backgroundSize = '600% 700%'
+      sprite.style.backgroundRepeat = 'no-repeat'
+    })
+  }
+  paint('')
   let disposed = false, dndOn = false, state = 'idle', visualAction = 'idle', frameTimer = 0, idleTimer = 0
   let front = 0, hasFrame = false
   let reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -182,6 +224,7 @@ function mountWhale(host, _ctx) {
     return n
   }
   function setFrame(frame) {
+    lastFrame = frame
     let extra = frame[0] === 'x'
     let row = extra ? 0 : frame[0], col = frame[1]
     let pos = extra ? (col * (100 / 3)) + '% 0%' : (col * 20) + '% ' + (row * (100 / 6)) + '%'
@@ -189,7 +232,9 @@ function mountWhale(host, _ctx) {
     root.setAttribute('data-frame-source', extra ? 'drawn' : 'atlas')
     let next = hasFrame ? 1 - front : front
     let incoming = layers[next], outgoing = layers[1 - next]
-    incoming.style.backgroundImage = 'url("' + (extra ? inbetweenUrl : url) + '")'
+    /* 素材未就位时写 url("") 会让浏览器把页面地址当图片请求（无谓报错），改成 none。 */
+    let frameUrl = extra ? inbetweenUrl : url
+    incoming.style.backgroundImage = frameUrl ? 'url("' + frameUrl + '")' : 'none'
     incoming.style.backgroundSize = extra ? '400% 100%' : '600% 700%'
     incoming.style.backgroundPosition = pos
     if (!hasFrame || dndOn || reduced) {
@@ -284,6 +329,48 @@ function mountWhale(host, _ctx) {
   host.addEventListener('pointerdown', onDown)
   setSize(readSize())
   applyState('idle')
+  /* 放在所有 let 初始化之后调用：bootAssets 里会读 disposed，提前调用会踩 TDZ。 */
+  bootAssets()
+
+  /* 素材引导：探 host → 低清占位（~72KB，先出角色）→ 高清升级（~934KB）。
+   * 低清图既是探针也是首帧，所以首屏只多花一次小请求，不会白等大图。 */
+  function bootAssets() {
+    let hit = readHostCache()
+    if (hit) paint(assetUrl(hit, FILE_TINY))
+    step(0)
+    function ordered() {
+      let list = CDN_HOSTS.slice()
+      let at = list.indexOf(hit)
+      if (at > 0) { list.splice(at, 1); list.unshift(hit) }
+      return list
+    }
+    function step(i) {
+      if (disposed) return
+      let list = ordered()
+      if (i >= list.length) return
+      let host = list[i]
+      loadImage(assetUrl(host, FILE_TINY), PROBE_MS).then(function (ok) {
+        if (disposed) return
+        if (!ok) return step(i + 1)
+        adopt(host)
+      })
+    }
+    function adopt(host) {
+      hit = host
+      writeHostCache(host)
+      paint(assetUrl(host, FILE_TINY))
+      let full = assetUrl(host, FILE_FULL)
+      loadImage(full, FULL_MS).then(function (ok) {
+        if (disposed || !ok) return
+        url = full
+        inbetweenUrl = assetUrl(host, FILE_IB)
+        /* 先把 hasFrame 压成 false，让 setFrame 走「无过渡」分支 ——
+         * 否则重放同一帧会读成一次切换，角色闪一下。 */
+        if (hasFrame && lastFrame) { hasFrame = false; setFrame(lastFrame) } else paint(full)
+        loadImage(inbetweenUrl, FULL_MS)  /* 过渡帧后台预热，用到时不卡 */
+      })
+    }
+  }
   return {
     el: root,
     setState: function (s) { if (!disposed) applyState(s) },
@@ -368,7 +455,7 @@ let EXTRA_MOVES = [['wave', '元气挥手'], ['rice', '吃白饭'], ['spin', '�
 PluginBus.register({
   id: PLUGIN_ID,
   name: 'DeepSeek 鲸鱼娘 · 原版',
-  version: '1.3.0',
+  version: '1.4.0',
   author: '内置 · 非官方同人',
   desc: '开源 Q 版女仆鲸鱼娘：56–168 px 尺寸调节、五种状态、六种互动，以及 4 张新增补画中间帧过渡。',
   init: function () { registerWhale() },
