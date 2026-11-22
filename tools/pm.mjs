@@ -78,7 +78,10 @@ function runDeploy() {
 }
 function gitStatus(cwd) {
   return git(cwd, ['status', '--porcelain']).split('\n').map((l) => l.trim()).filter(Boolean)
-    .map((l) => ({ st: l.slice(0, 2).trim(), file: l.slice(3).replace(/^"|"$/g, '') }))
+    /* 注意顺序：整行先 trim 会吃掉前导空格，此时再 slice(3) 会把路径首字母削掉
+     * （" M plugins/x" → trim → "M plugins/x" → slice(3) = "lugins/x"），
+     * 于是"没有待发布改动"这种假象。按两字符状态位之后再 trim 取路径。 */
+    .map((l) => ({ st: l.slice(0, 2).trim(), file: l.slice(2).trim().replace(/^"|"$/g, '') }))
 }
 
 // ── 数据读取 ──────────────────────────────────────────────────
