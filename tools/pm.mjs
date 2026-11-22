@@ -53,7 +53,10 @@ function warn(msg) { console.log('  ⚠ ' + msg) }
 
 /** 所有外部命令都用参数数组调用，不拼 shell 字符串（路径含空格/中文也安全）。 */
 function run(bin, argv, cwd, quiet = false) {
-  const r = spawnSync(bin, argv, { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  /* Windows 的 npm.cmd / npx.cmd 必须走 shell 才能启动（spawnSync 直接调 .cmd 会失败），
+   * 发版跑到门禁那一步才炸、前面 tag 已经推了 —— 这个坑会让人以为测试红了。 */
+  const needShell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(bin)
+  const r = spawnSync(bin, argv, { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, shell: needShell })
   if (r.status !== 0) {
     const tail = ((r.stderr || '') + (r.stdout || '')).trim().split('\n').slice(-6).join('\n    ')
     die(`命令失败：${bin} ${argv.join(' ')}\n    ${tail}`)
