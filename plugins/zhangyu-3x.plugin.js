@@ -1,13 +1,118 @@
+/* 人格浓度只加一句短规则，原金句库与方法常量保持逐字不动。 */
+function zyExtra() {
+  try {
+    let v = String((window.PluginBus && window.PluginBus.config('zhangyu-3x', 'intensity')) || '标准')
+    if (v === '克制') return '\n【人格浓度·克制】本轮少用口头禅与段子，只保留方法框架与关键提醒。'
+    if (v === '充分') return '\n【人格浓度·充分】本轮可自然多用该老师的标志性表达与金句，但不得牺牲推导完整性。'
+  } catch (e) { }
+  return ''
+}
+
+/* ══════════ 张宇·三向解题 UI 能力面（早期插件升级 2026-11-22） ══════════ */
+let zyUI = (function () {
+  'use strict'
+  let NS = 'zy-'
+  let CSS = `
+.zy-page{display:flex;flex-direction:column;gap:12px}
+.zy-hero{border-radius:14px;padding:16px 18px;background:var(--glass-bg);border:1px solid var(--line)}
+.zy-hero h3{margin:0 0 6px;font-size:16px}
+.zy-hero p{margin:0;color:var(--text-secondary);font-size:12.5px;line-height:1.7}
+.zy-card{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--glass-bg)}
+.zy-card h4{margin:0 0 10px;font-size:13.5px}
+.zy-flow{display:flex;gap:8px;flex-wrap:wrap}
+.zy-flow span{flex:1;min-width:110px;border-radius:9px;padding:10px 11px;border:1px solid var(--line);font-size:12px;line-height:1.6}
+.zy-flow b{display:block;color:var(--accent-text);font-size:11.5px;margin-bottom:3px}
+.zy-scenes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.zy-scenes div{border-radius:9px;padding:8px 10px;background:var(--glass-bg);font-size:11.5px;color:var(--text-secondary)}
+.zy-scenes b{display:block;color:inherit;font-size:12px;margin-bottom:2px}
+.zy-panel{display:flex;flex-direction:column;gap:7px;font-size:12px}
+.zy-top{display:flex;justify-content:space-between;align-items:center}
+.zy-pill{border-radius:999px;padding:3px 9px;border:1px solid var(--line);font-size:11px;color:var(--text-secondary)}
+.zy-chain{font-size:11.5px;color:var(--text-secondary);line-height:1.6}
+`
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] }) }
+  function style(ctx) { try { if (ctx && ctx.css && typeof ctx.css.add === 'function') ctx.css.add(CSS, 'skin') } catch (e) { } }
+  function intensity(ctx) {
+    try {
+      let v = String((ctx && ctx.config ? ctx.config('intensity') : '') || '')
+      return ['克制', '标准', '充分'].indexOf(v) >= 0 ? v : '标准'
+    } catch (e) { return '标准' }
+  }
+  function methods() { return ["O 盯住目标", "D 细节处理", "P 检索思路"] }
+  function scenes() {
+    return [
+      ['copilot.chat', '教练答疑'], ['quiz.gen', '押题出题'], ['quiz.answer', '判分讲解'],
+      ['photo.analyze', '拍题识别'], ['insp.gen', '方法卡'], ['insp.example', '例题生成'],
+    ]
+  }
+
+  function mount(el, ctx) {
+    style(ctx)
+    el.innerHTML = '<div class="' + NS + 'page">'
+      + '<div class="' + NS + 'hero"><h3>' + U.icon('cpBrain') + ' 张宇·三向解题</h3>'
+      + '<p>先锁定题目要达成什么，再逐条挖条件（定义/化归/拼接/特殊值），最后从常规、反证、归纳、逆否里选路径。</p><p style="margin-top:6px">当前人格浓度：<b>' + esc(intensity(ctx)) + '</b>（在插件配置里可调）</p></div>'
+      + '<div class="' + NS + 'card"><h4>方法论骨架</h4><div class="' + NS + 'flow">'
+      + methods().map(function (m, i) { return '<span><b>' + (i + 1) + '</b>' + esc(m) + '</span>' }).join('')
+      + '</div><p class="muted-sm" style="font-size:12px;line-height:1.8;margin:10px 0 0">先锁定题目要达成什么，再逐条挖条件（定义/化归/拼接/特殊值），最后从常规、反证、归纳、逆否里选路径。</p></div>'
+      + '<div class="' + NS + 'card"><h4>在哪些场景生效</h4><div class="' + NS + 'scenes">'
+      + scenes().map(function (x) { return '<div><b>' + esc(x[1]) + '</b>' + esc(x[0]) + '</div>' }).join('')
+      + '</div></div>'
+      + '<div class="' + NS + 'card"><details><summary style="cursor:pointer;font-size:12.5px">调整人格浓度与边界 ⓘ</summary>'
+      + '<p style="font-size:12px;line-height:1.8;color:var(--text-secondary)">克制只保留方法框架；标准按老师本色讲；充分可多用标志性金句。无论哪一档，数学结论保持绝对准确，原有输出格式与动作协议不变。</p>'
+      + '<div class="btn-row" style="margin-top:8px">'
+      + ['克制', '标准', '充分'].map(function (v) { return '<button class="btn btn-sm ' + (v === intensity(ctx) ? 'btn-primary' : 'btn-ghost') + '" data-v="' + v + '">' + v + '</button>' }).join('')
+      + '</div></details></div></div>'
+    let bs = el.querySelectorAll('[data-v]')
+    Array.prototype.forEach.call(bs, function (b) {
+      b.onclick = function () {
+        try { if (ctx && typeof ctx.config === 'function') ctx.config('intensity', b.getAttribute('data-v')) } catch (e) { }
+        mount(el, ctx)
+        if (ctx.Toast) ctx.Toast.show('人格浓度已切到「' + b.getAttribute('data-v') + '」', 'success')
+      }
+    })
+    return function () { el.innerHTML = '' }
+  }
+
+  function panel(ctx) {
+    style(ctx)
+    return '<div class="' + NS + 'panel">'
+      + '<div class="' + NS + 'top"><span>' + U.icon('cpBrain') + ' 张宇·三向解题</span><span class="' + NS + 'pill">' + esc(intensity(ctx)) + '</span></div>'
+      + '<div class="' + NS + 'chain">' + methods().join(' → ') + '</div>'
+      + '<div class="' + NS + 'chain">6 个 AI 场景已覆盖：教练 / 出题 / 判分 / 拍题 / 方法卡 / 例题</div>'
+      + '<button class="btn btn-sm btn-ghost">打开人格工作台</button></div>'
+  }
+
+  return {
+    mount: mount,
+    panel: panel,
+    config: [{ key: 'intensity', label: '人格浓度', type: 'select', default: '标准', options: ['克制', '标准', '充分'] }],
+    queries: [
+      { key: 'zy-method', label: '张宇·三向解题方法论', run: function (ctx) {
+        return '方法论：' + methods().join(' → ') + '。先锁定题目要达成什么，再逐条挖条件（定义/化归/拼接/特殊值），最后从常规、反证、归纳、逆否里选路径。（浓度：' + intensity(ctx) + '）'
+      } },
+      { key: 'zy-intensity', label: '张宇·三向解题人格浓度', run: function (ctx) {
+        let v = intensity(ctx)
+        return '张宇·三向解题当前人格浓度为「' + v + '」。' + (v === '克制' ? '只讲框架，少用口头禅。' : (v === '充分' ? '可多用标志性金句。' : '按老师本色讲解。')) + '可在插件配置里调整。'
+      } },
+    ],
+    shortcut: { key: 'alt+z', label: '打开张宇·三向解题工作台', run: function (ctx) { try { ctx.api.goTool('zhangyu-3x-page') } catch (e) { } } },
+    memory: '用户装有「张宇·三向解题」插件，覆盖教练/出题/判分/拍题/方法卡/例题六个场景。方法论：O 盯住目标、D 细节处理、P 检索思路。用户提到该老师或对应解题风格时，按其人格与方法组织回答；人格浓度可在插件配置里调。',
+  }
+})()
+
 PluginBus.register({
-  id: 'zhangyu-3x', name: '张宇·三向解题人格', version: '2.3', author: '内置',
+  id: 'zhangyu-3x', name: '张宇·三向解题人格', version: '2.4.1', author: '内置',
   desc: '张宇人格 + 三向解题法，覆盖教练/出题/判分/拍题',
+    tools: [{ id: 'zhangyu-3x-page', title: '张宇·三向解题', icon: '' + U.icon('cpBrain') + '', mount: function (el, ctx) { return zyUI.mount(el, ctx) } }],
+    panels: [{ id: 'zy-today', title: '张宇·三向解题', icon: '' + U.icon('cpBrain') + '', width: 310, height: 200, render: function (ctx) { return zyUI.panel(ctx) } }],
+    config: zyUI.config, queries: zyUI.queries, shortcuts: [zyUI.shortcut], memory: zyUI.memory,
   promptAugment: [
-    { ctx: 'copilot.chat', name: '教练·张宇人格', note: '全程以张宇风格讲题答疑（不门控，覆盖教练全对话）', build: function () { return ZY_PERSONA + ZY_ODP } },
+    { ctx: 'copilot.chat', name: '教练·张宇人格', note: '全程以张宇风格讲题答疑（不门控，覆盖教练全对话）', build: function () { return ZY_PERSONA + ZY_ODP + zyExtra() } },
     { ctx: 'quiz.gen', name: '出题·张宇', note: '按 O→D→P 命可验证的题', build: function () { return ZY_PERSONA + ZY_QUIZ } },
-    { ctx: 'quiz.answer', name: '判分讲解·张宇', note: '用 O→D→P 拆采分点讲评', build: function () { return ZY_PERSONA + ZY_ODP } },
-    { ctx: 'photo.analyze', name: '拍题·张宇', note: '识别后按三向法讲思路', build: function () { return ZY_PERSONA + ZY_ODP } },
+    { ctx: 'quiz.answer', name: '判分讲解·张宇', note: '用 O→D→P 拆采分点讲评', build: function () { return ZY_PERSONA + ZY_ODP + zyExtra() } },
+    { ctx: 'photo.analyze', name: '拍题·张宇', note: '识别后按三向法讲思路', build: function () { return ZY_PERSONA + ZY_ODP + zyExtra() } },
     { ctx: 'insp.gen', name: '方法卡·张宇', note: '步骤骨架用 O→D→P', build: function () { return ZY_ODP_CARD } },
-    { ctx: 'insp.example', name: '例题·张宇', note: '锁定目标→处理条件→选择思路', build: function () { return ZY_PERSONA + ZY_ODP } }
+    { ctx: 'insp.example', name: '例题·张宇', note: '锁定目标→处理条件→选择思路', build: function () { return ZY_PERSONA + ZY_ODP + zyExtra() } }
   ]
 });
 let ZY_PERSONA = [

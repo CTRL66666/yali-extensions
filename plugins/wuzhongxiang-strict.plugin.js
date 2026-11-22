@@ -1,13 +1,118 @@
+/* 人格浓度只加一句短规则，原金句库与方法常量保持逐字不动。 */
+function wzExtra() {
+  try {
+    let v = String((window.PluginBus && window.PluginBus.config('wuzhongxiang-strict', 'intensity')) || '标准')
+    if (v === '克制') return '\n【人格浓度·克制】本轮少用口头禅与段子，只保留方法框架与关键提醒。'
+    if (v === '充分') return '\n【人格浓度·充分】本轮可自然多用该老师的标志性表达与金句，但不得牺牲推导完整性。'
+  } catch (e) { }
+  return ''
+}
+
+/* ══════════ 武忠祥·严谨避坑 UI 能力面（早期插件升级 2026-11-22） ══════════ */
+let wzUI = (function () {
+  'use strict'
+  let NS = 'wz-'
+  let CSS = `
+.wz-page{display:flex;flex-direction:column;gap:12px}
+.wz-hero{border-radius:14px;padding:16px 18px;background:var(--glass-bg);border:1px solid var(--line)}
+.wz-hero h3{margin:0 0 6px;font-size:16px}
+.wz-hero p{margin:0;color:var(--text-secondary);font-size:12.5px;line-height:1.7}
+.wz-card{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--glass-bg)}
+.wz-card h4{margin:0 0 10px;font-size:13.5px}
+.wz-flow{display:flex;gap:8px;flex-wrap:wrap}
+.wz-flow span{flex:1;min-width:110px;border-radius:9px;padding:10px 11px;border:1px solid var(--line);font-size:12px;line-height:1.6}
+.wz-flow b{display:block;color:var(--accent-text);font-size:11.5px;margin-bottom:3px}
+.wz-scenes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.wz-scenes div{border-radius:9px;padding:8px 10px;background:var(--glass-bg);font-size:11.5px;color:var(--text-secondary)}
+.wz-scenes b{display:block;color:inherit;font-size:12px;margin-bottom:2px}
+.wz-panel{display:flex;flex-direction:column;gap:7px;font-size:12px}
+.wz-top{display:flex;justify-content:space-between;align-items:center}
+.wz-pill{border-radius:999px;padding:3px 9px;border:1px solid var(--line);font-size:11px;color:var(--text-secondary)}
+.wz-chain{font-size:11.5px;color:var(--text-secondary);line-height:1.6}
+`
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] }) }
+  function style(ctx) { try { if (ctx && ctx.css && typeof ctx.css.add === 'function') ctx.css.add(CSS, 'skin') } catch (e) { } }
+  function intensity(ctx) {
+    try {
+      let v = String((ctx && ctx.config ? ctx.config('intensity') : '') || '')
+      return ['克制', '标准', '充分'].indexOf(v) >= 0 ? v : '标准'
+    } catch (e) { return '标准' }
+  }
+  function methods() { return ["梳理概念", "例题示范", "拆解经典错误", "一题多解", "方法归纳"] }
+  function scenes() {
+    return [
+      ['copilot.chat', '教练答疑'], ['quiz.gen', '押题出题'], ['quiz.answer', '判分讲解'],
+      ['photo.analyze', '拍题识别'], ['insp.gen', '方法卡'], ['insp.example', '例题生成'],
+    ]
+  }
+
+  function mount(el, ctx) {
+    style(ctx)
+    el.innerHTML = '<div class="' + NS + 'page">'
+      + '<div class="' + NS + 'hero"><h3>' + U.icon('cpGear') + ' 武忠祥·严谨避坑</h3>'
+      + '<p>先讲定理适用条件，再不跳步地推导；顺着最易犯的错演算到岔口，点破零分点，最后归纳固定套路。</p><p style="margin-top:6px">当前人格浓度：<b>' + esc(intensity(ctx)) + '</b>（在插件配置里可调）</p></div>'
+      + '<div class="' + NS + 'card"><h4>方法论骨架</h4><div class="' + NS + 'flow">'
+      + methods().map(function (m, i) { return '<span><b>' + (i + 1) + '</b>' + esc(m) + '</span>' }).join('')
+      + '</div><p class="muted-sm" style="font-size:12px;line-height:1.8;margin:10px 0 0">先讲定理适用条件，再不跳步地推导；顺着最易犯的错演算到岔口，点破零分点，最后归纳固定套路。</p></div>'
+      + '<div class="' + NS + 'card"><h4>在哪些场景生效</h4><div class="' + NS + 'scenes">'
+      + scenes().map(function (x) { return '<div><b>' + esc(x[1]) + '</b>' + esc(x[0]) + '</div>' }).join('')
+      + '</div></div>'
+      + '<div class="' + NS + 'card"><details><summary style="cursor:pointer;font-size:12.5px">调整人格浓度与边界 ⓘ</summary>'
+      + '<p style="font-size:12px;line-height:1.8;color:var(--text-secondary)">克制只保留方法框架；标准按老师本色讲；充分可多用标志性金句。无论哪一档，数学结论保持绝对准确，原有输出格式与动作协议不变。</p>'
+      + '<div class="btn-row" style="margin-top:8px">'
+      + ['克制', '标准', '充分'].map(function (v) { return '<button class="btn btn-sm ' + (v === intensity(ctx) ? 'btn-primary' : 'btn-ghost') + '" data-v="' + v + '">' + v + '</button>' }).join('')
+      + '</div></details></div></div>'
+    let bs = el.querySelectorAll('[data-v]')
+    Array.prototype.forEach.call(bs, function (b) {
+      b.onclick = function () {
+        try { if (ctx && typeof ctx.config === 'function') ctx.config('intensity', b.getAttribute('data-v')) } catch (e) { }
+        mount(el, ctx)
+        if (ctx.Toast) ctx.Toast.show('人格浓度已切到「' + b.getAttribute('data-v') + '」', 'success')
+      }
+    })
+    return function () { el.innerHTML = '' }
+  }
+
+  function panel(ctx) {
+    style(ctx)
+    return '<div class="' + NS + 'panel">'
+      + '<div class="' + NS + 'top"><span>' + U.icon('cpGear') + ' 武忠祥·严谨避坑</span><span class="' + NS + 'pill">' + esc(intensity(ctx)) + '</span></div>'
+      + '<div class="' + NS + 'chain">' + methods().join(' → ') + '</div>'
+      + '<div class="' + NS + 'chain">6 个 AI 场景已覆盖：教练 / 出题 / 判分 / 拍题 / 方法卡 / 例题</div>'
+      + '<button class="btn btn-sm btn-ghost">打开人格工作台</button></div>'
+  }
+
+  return {
+    mount: mount,
+    panel: panel,
+    config: [{ key: 'intensity', label: '人格浓度', type: 'select', default: '标准', options: ['克制', '标准', '充分'] }],
+    queries: [
+      { key: 'wz-method', label: '武忠祥·严谨避坑方法论', run: function (ctx) {
+        return '方法论：' + methods().join(' → ') + '。先讲定理适用条件，再不跳步地推导；顺着最易犯的错演算到岔口，点破零分点，最后归纳固定套路。（浓度：' + intensity(ctx) + '）'
+      } },
+      { key: 'wz-intensity', label: '武忠祥·严谨避坑人格浓度', run: function (ctx) {
+        let v = intensity(ctx)
+        return '武忠祥·严谨避坑当前人格浓度为「' + v + '」。' + (v === '克制' ? '只讲框架，少用口头禅。' : (v === '充分' ? '可多用标志性金句。' : '按老师本色讲解。')) + '可在插件配置里调整。'
+      } },
+    ],
+    shortcut: { key: 'alt+w', label: '打开武忠祥·严谨避坑工作台', run: function (ctx) { try { ctx.api.goTool('wuzhongxiang-strict-page') } catch (e) { } } },
+    memory: '用户装有「武忠祥·严谨避坑」插件，覆盖教练/出题/判分/拍题/方法卡/例题六个场景。方法论：梳理概念、例题示范、拆解经典错误、一题多解、方法归纳。用户提到该老师或对应解题风格时，按其人格与方法组织回答；人格浓度可在插件配置里调。',
+  }
+})()
+
 PluginBus.register({
-  id: 'wuzhongxiang-strict', name: '武忠祥·严谨避坑人格', version: '1.2', author: '内置',
+  id: 'wuzhongxiang-strict', name: '武忠祥·严谨避坑人格', version: '1.3.1', author: '内置',
   desc: '武忠祥人格 + 题型归纳/挖坑纠错，覆盖教练/出题/判分/拍题',
+    tools: [{ id: 'wuzhongxiang-strict-page', title: '武忠祥·严谨避坑', icon: '' + U.icon('cpGear') + '', mount: function (el, ctx) { return wzUI.mount(el, ctx) } }],
+    panels: [{ id: 'wz-today', title: '武忠祥·严谨避坑', icon: '' + U.icon('cpGear') + '', width: 310, height: 200, render: function (ctx) { return wzUI.panel(ctx) } }],
+    config: wzUI.config, queries: wzUI.queries, shortcuts: [wzUI.shortcut], memory: wzUI.memory,
   promptAugment: [
-    { ctx: 'copilot.chat', name: '教练·武忠祥', note: '全程以武忠祥风格讲题答疑（不门控，覆盖教练全对话）', build: function () { return WZ_PERSONA + WZ_METHOD } },
+    { ctx: 'copilot.chat', name: '教练·武忠祥', note: '全程以武忠祥风格讲题答疑（不门控，覆盖教练全对话）', build: function () { return WZ_PERSONA + WZ_METHOD + wzExtra() } },
     { ctx: 'quiz.gen', name: '出题·武忠祥', note: '考核心考点+设经典陷阱', build: function () { return WZ_PERSONA + WZ_QUIZ } },
-    { ctx: 'quiz.answer', name: '判分讲解·武忠祥', note: '先定性再定量、拆经典错误', build: function () { return WZ_PERSONA + WZ_METHOD } },
-    { ctx: 'photo.analyze', name: '拍题·武忠祥', note: '识别题型→匹配方法→避坑', build: function () { return WZ_PERSONA + WZ_METHOD } },
+    { ctx: 'quiz.answer', name: '判分讲解·武忠祥', note: '先定性再定量、拆经典错误', build: function () { return WZ_PERSONA + WZ_METHOD + wzExtra() } },
+    { ctx: 'photo.analyze', name: '拍题·武忠祥', note: '识别题型→匹配方法→避坑', build: function () { return WZ_PERSONA + WZ_METHOD + wzExtra() } },
     { ctx: 'insp.gen', name: '方法卡·武忠祥', note: '概念→例题→经典错误→一题多解→归纳', build: function () { return WZ_CARD } },
-    { ctx: 'insp.example', name: '例题·武忠祥', note: '规范步骤不跳步、点破易错', build: function () { return WZ_PERSONA + WZ_METHOD } }
+    { ctx: 'insp.example', name: '例题·武忠祥', note: '规范步骤不跳步、点破易错', build: function () { return WZ_PERSONA + WZ_METHOD + wzExtra() } }
   ]
 });
 let WZ_PERSONA = [
