@@ -347,7 +347,7 @@ function cmdRelease() {
   // 4) 构建 + 部署
   step('构建 + 部署')
   const env = { ...process.env, TMP: 'E:/_wb_tmp', TEMP: 'E:/_wb_tmp', ESBUILD_BINARY_PATH: 'E:/_wb_tmp/esbuild.exe' }
-  const b = spawnSync(NPM, ['run', 'build:fast'], { cwd: SITE, encoding: 'utf8', env, maxBuffer: 64 * 1024 * 1024 })
+  const b = spawnSync(NPM, ['run', 'build:fast'], { cwd: SITE, encoding: 'utf8', env, maxBuffer: 64 * 1024 * 1024, shell: process.platform === 'win32' })
   if (b.status !== 0) die('构建失败，未部署：\n' + ((b.stderr || '') + (b.stdout || '')).slice(-1500))
   ok('构建完成')
   if (existsSync(DEPLOY_DIR)) rmSync(DEPLOY_DIR, { recursive: true, force: true })
@@ -365,7 +365,7 @@ function cmdRelease() {
 function cmdDeploy() {
   step('构建 + 部署（EXT_TAG=' + extTag() + '）')
   const env = { ...process.env, TMP: 'E:/_wb_tmp', TEMP: 'E:/_wb_tmp', ESBUILD_BINARY_PATH: 'E:/_wb_tmp/esbuild.exe' }
-  const b = spawnSync(NPM, ['run', 'build:fast'], { cwd: SITE, encoding: 'utf8', env, maxBuffer: 64 * 1024 * 1024 })
+  const b = spawnSync(NPM, ['run', 'build:fast'], { cwd: SITE, encoding: 'utf8', env, maxBuffer: 64 * 1024 * 1024, shell: process.platform === 'win32' })
   if (b.status !== 0) die('构建失败，未部署')
   if (existsSync(DEPLOY_DIR)) rmSync(DEPLOY_DIR, { recursive: true, force: true })
   mkdirSync(DEPLOY_DIR, { recursive: true })
