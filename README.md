@@ -11,7 +11,9 @@
 - 每次改一个插件都要重新构建、重新部署整个站点；
 - 插件出问题会污染本体的提交历史。
 
-独立之后：插件改完推这里，站点**不用重新部署**就能拉到新版。
+独立之后：插件源码与素材不再进站点产物，站点只在安装时按需拉取。
+> ⚠ 注意：站点是按**固定 tag** 拉的，所以「发布新版插件」仍然要动本体一行 `EXT_TAG` 并重新构建部署；
+> 换来的是「上游一改，线上不会跟着变」——见下方《发版与 tag 约定》。
 
 ## 目录约定
 
@@ -130,3 +132,41 @@ https://raw.githubusercontent.com/CTRL66666/yali-extensions/main/plugins/<file>.
   本体的 `market-version-drift` 门禁会拿 `tests/vendor/ext-plugins/` 快照比对。
 - 素材（图集等）可以钉在"它最后一次变更的 tag"上，不必跟着每次代码 tag 变 ——
   鲸鱼娘就是 `assets` 钉在 `@v1.4.1`，代码走 `@v1.5.0`。
+
+## 插件管理脚本 `pm.mjs`（日常只用这一条）
+
+发一次版原本要串 8~10 步：改版本 → 改市场 → 打 tag → push → 等 CDN →
+改本体 `EXT_TAG` → 同步快照 → 跑门禁 → 构建 → 部署。**漏任何一步都不会当场报错**，
+只会变成「市场显示新版但线上拉旧代码」这种静默事故。脚本把这些步骤收口：
+
+```bash
+cd C:/Users/20442/Desktop/github_uppdate/_ext_repo
+
+node tools/pm.mjs list                                    # 28 支插件的版本/体积/市场版本对照
+node tools/pm.mjs check                                   # 只读体检：语法/版本锚/tag/快照一致性
+
+# 日常发版：改完插件源码，一条命令搞定（默认连站点一起构建部署）
+node tools/pm.mjs release --dry-run                       # 先看计划，保证零写入
+node tools/pm.mjs release                                 # 真发：自动升 patch → 打新 tag → push → 等 CDN →
+                                                          #       改 EXT_TAG → 同步快照 → 门禁 → 构建 → 部署
+node tools/pm.mjs release insight-plugin                  # 只发指定插件
+node tools/pm.mjs release --tag v2.0.0 --bump minor       # 手动指定 tag / 升法
+node tools/pm.mjs release --no-deploy                     # 只发扩展仓 + 改本体，不部署
+
+node tools/pm.mjs new <id> [名称]                         # 生成插件骨架（还要手动加市场条目）
+node tools/pm.mjs bump <id> [patch|minor|major|x.y.z]     # 只升版本，源码+市场各改一处，不提交
+node tools/pm.mjs deploy                                  # tag 和 EXT_TAG 都已就位时，只重建部署
+```
+
+### 脚本里钉死的规矩（别绕开）
+
+| 规矩 | 原因 |
+|---|---|
+| 不用 `git add -A`，只显式 add 插件文件/快照 | 工作区常驻别的线的 WIP |
+| tag 只增不改，`--tag` 撞已存在的 tag 直接失败 | jsDelivr 对 tag 是不可变缓存 |
+| push 后**轮询 CDN 拿到 200** 才继续 | jsDelivr 索引偶有延迟，不能假设"推完就有了" |
+| 发版前必跑 `check`，含"最新 tag == 本体 EXT_TAG" | 这条漂移两边自洽，任何单侧门禁都拦不住 |
+| `--dry-run` 不写任何文件、不发网络写操作 | 部署前可安全预演 |
+
+> 插件是否升版本：脚本会比对 HEAD 里的源码版本。若这次没升过、市场也一致，自动 patch+1；
+> 若你已手动 `bump` 过，就**不会重复升**。两位版本号（`1.0`）会自动补成三位（`1.0.1`）再加。
