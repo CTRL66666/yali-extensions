@@ -37,7 +37,7 @@ function pRefresh(cfg) {
   document.querySelectorAll('[data-pomo-stat]').forEach(function (el) { el.textContent = '今日 🍅 ' + (s2.focusN || 0) + ' 个 · 专注 ' + (s2.focusMin || 0) + ' 分钟'; });
 }
 PluginBus.register({
-  id: 'pomodoro-pro', name: '番茄钟计时器 Pro', version: '1.1', author: '内置',
+  id: 'pomodoro-pro', name: '番茄钟计时器 Pro', version: '1.2', author: '内置',
   desc: '专注/短休/长休状态机 + 浮窗 + 统计 + 提示音',
   config: [
     { key: 'focusMin', label: '专注时长（分钟）', type: 'number', default: 25 },
@@ -125,5 +125,24 @@ PluginBus.register({
       });
       pRefresh(ctx.config);
     } }],
+    /* 【2026-11-22 边缘升级】只补能力面，状态机/init/panels/tools/hooks 一字未动。
+     * newtab-2026-10-07.test.ts 深度重放本文件（start/pause/skip/finish 与 DOM 元素），
+     * 因此这里不碰任何既有函数，也不注入新的全局监听。 */
+    queries: [
+      { key: 'pp-today', label: '今日番茄统计', run: function (ctx) {
+        let x = pStats()
+        return '今天完成 ' + (x.focusN || 0) + ' 个番茄，累计专注 ' + (x.focusMin || 0) + ' 分钟。'
+      } },
+      { key: 'pp-state', label: '当前计时状态', run: function (ctx) {
+        let st = pLoad()
+        if (st.mode === 'idle') return '番茄钟当前未开始。'
+        let min = Math.ceil(pRemain(st) / 60)
+        return '番茄钟当前是' + PMODE[st.mode] + '，第 ' + st.round + ' 轮，约剩 ' + min + ' 分钟。'
+      } },
+    ],
+    shortcuts: [{ key: 'alt+shift+p', label: '打开番茄钟', run: function (ctx) {
+      try { ctx.api.goTool('pomodoro-pro') } catch (e) { }
+    } }],
+    memory: '用户装有「番茄钟计时器 Pro」历史插件：专注/短休/长休状态机、今日番茄统计、完成广播。用户问「今天专注了多久」「番茄钟状态」时查它。',
   onDisable: function () { if (window.__pomoTimer) { clearInterval(window.__pomoTimer); window.__pomoTimer = 0; } },
 });
