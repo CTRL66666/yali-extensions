@@ -354,12 +354,117 @@
     return out.join('')
   }
 
-  var VIEWS = [
+  /** 清理决策：不同集合该用什么方式清 —— 这里只给**决策依据**，不提供第二个删除入口。
+   * 用户看完这段应该知道"我该删什么、删之前要做什么"，而不是在统一面板上一通乱点。 */
+  function viewGuide(ctx, S) {
+    var out = []
+    var cfg = S.cfg
+    var rules = [
+      { t: '拍题照片', k: 'mistakePhotos', why: '体积最大。删之前先确认 AI 解析已经存成文字，否则删了图就再也看不到原题。', how: '统一面板 → 按集合清理 → 勾"已掌握"的照片' },
+      { t: '错题', k: 'mistakes', why: '条目小，但关联着复习计划。删掉等于抹掉复习历史。', how: '优先按科目归档；真要删先做云同步' },
+      { t: '单词', k: 'vocab', why: '词卡通常带例句，量大但每条约几百字节。', how: '删已掌握词前确认不在当前背诵计划里' },
+      { t: '任务', k: 'tasks', why: '含完成标记与排程。历史任务删了就无法复盘。', how: '只清超过 90 天的已完成任务' },
+      { t: '作文', k: 'essays', why: '批改记录可能含 AI 长文本，体积容易被低估。', how: '先导出需要的，再按时间清' },
+    ]
+    out.push('<section class="' + NS + 'card"><h4>' + I('cpGear', '策') + ' 清理决策表</h4>'
+      + '<p class="' + NS + 'tip">本页**没有删除按钮**（这是守恒契约）。'
+      + '真正的清理只有一处：下方统一面板 / 设置 → 数据清理。这里只回答"该不该删"。</p>'
+      + '<table class="' + NS + 'table"><thead><tr><th>集合</th><th>当前</th><th>为什么谨慎</th><th>建议在统一面板里</th></tr></thead><tbody>'
+      + rules.map(function (r) {
+        var hit = S.detail.filter(function (x) { return x.k === r.k })[0]
+        return '<tr><td>' + esc(r.t) + '</td><td>' + (hit ? fmtCount(hit.n) : '—') + '</td><td>'
+          + esc(r.why) + '</td><td>' + esc(r.how) + '</td></tr>'
+      }).join('') + '</tbody></table></section>')
+    out.push('<section class="' + NS + 'card"><h4>删之前必须做的三件事</h4>'
+      + '<div class="' + NS + 'note warn"><div><b>1. 云同步</b>删除会走墓碑同步到其它设备。'
+      + '确认设置里的云同步已经跑完，否则别的设备可能把删掉的东西又同步回来。</div></div>'
+      + '<div class="' + NS + 'note warn"><div><b>2. 导出备份</b>用本页「趋势 → 导出 JSON」留一份快照。'
+      + '快照只含条数与体积，不含内容 —— 真要备份内容请用设置页的导出功能。</div></div>'
+      + '<div class="' + NS + 'note info"><div><b>3. 先删一小批</b>别一次清空最大的集合。'
+      + '先删 10 条已掌握的，确认页面正常、数据没丢，再继续。</div></div>'
+      + '</section>')
+    out.push('<section class="' + NS + 'card"><h4>什么时候该清</h4>'
+      + '<p class="' + NS + 'tip" style="margin:0">照片 ' + fmtCount(S.c.photos) + ' / 阈值 ' + fmtCount(cfg.warnAt)
+      + '，错题 ' + fmtCount(S.c.mistakes) + ' / 阈值 ' + fmtCount(cfg.warnMistakes) + '。'
+      + '阈值只决定本页提醒，**不是"到了就必须删"** —— 空间够用就不必动。</p></section>')
+    return out.join('')
+  }
+
+  /** 术语表：清理工具里最容易误操作的就是"不懂词就点删除"。
+   * 这一页把 localStorage / IndexedDB / 墓碑 / 云同步的关系讲清楚。 */
+  function viewGlossary(ctx, S) {
+    var out = []
+    var terms = [
+      ['localStorage', '浏览器里的键值存储，同步写入。设置、小状态、学习时长通常在这里。', '清了会丢本地配置；部分数据云同步能补回。'],
+      ['IndexedDB', '浏览器里的结构化数据库，适合放大对象（照片 base64、大集合）。', '容量比 localStorage 大得多；清理要走统一面板按表清。'],
+      ['Store 集合', '站内的数据集合（mistakes / vocab / tasks 等），可能落在 LS 或 IDB。', '设置页数据区会标注每条落在哪儿；本页只列条数。'],
+      ['墓碑 (tombstone)', '删除标记。删一条不是真的消失，而是留个"删过"的记录同步到其它设备。', '直接清 localStorage 不留墓碑 → 其它设备会把数据同步回来。'],
+      ['云同步', '把本机变更推到云端、从云端拉回其它设备的变更。', '删除前不同步 = 别处可能恢复；同步后再删才稳。'],
+      ['估算体积', '本页按 UTF-16 粗算 JSON 长度，只用来"找大头"。', '不等于磁盘占用；精确值以设置页数据区为准。'],
+    ]
+    out.push('<section class="' + NS + 'card"><h4>' + I('cpBrain', '词') + ' 术语与风险</h4>'
+      + '<table class="' + NS + 'table"><thead><tr><th>术语</th><th>是什么</th><th>清错了会怎样</th></tr></thead><tbody>'
+      + terms.map(function (r) {
+        return '<tr><td><b>' + esc(r[0]) + '</b></td><td>' + esc(r[1]) + '</td><td>' + esc(r[2]) + '</td></tr>'
+      }).join('') + '</tbody></table></section>')
+    out.push('<section class="' + NS + 'card"><h4>为什么本插件没有删除按钮</h4>'
+      + '<div class="' + NS + 'note good"><div><b>一个事实只能有一个写入口</b>'
+      + '设置页「数据清理」与统一面板共用 core/datamanage 的集合注册表与墓碑逻辑。'
+      + '如果本插件再做一套删除，两处的口径迟早分叉 —— 用户会遇到"这里说删了、那里还在"。</div></div>'
+      + '<p class="' + NS + 'tip" style="margin:0">所以本页只做只读体检、趋势记录和清理决策。'
+      + '要动手，往下滚到统一面板，或去设置页。</p></section>')
+    return out.join('')
+  }
+
+  /** FAQ：把"体检数字和设置页对不上""清理后别处又回来了"这类高频疑问写死。
+   * 这不是装饰性帮助页 —— 每一条都对应一个真实会遇到的误判。 */
+  function viewFAQ(ctx, S) {
+    var faq = [
+      ['这里说 200 张照片，设置页说 198 条，谁对？',
+       '以设置页数据区为准。本页条数从 Store.get() 现读，若两次读取之间有人删了 Photo，' +
+       '或设置页用了不同集合口径（比如排除了墓碑），就会出现 1-2 条的差。本页数字只用于判断量级。'],
+      ['为什么体积只是"估算"？',
+       '浏览器不提供某个 Store 集合的精确磁盘占用。本页用 JSON 序列化后的 UTF-16 长度粗估，' +
+       '只够回答"哪个集合是大头"。精确数字要去设置页的 IndexedDB 统计。'],
+      ['我在这里点了清理，为什么别的设备还有？',
+       '本插件没有清理按钮（守恒契约）。如果你用的是设置页统一面板，删除会写墓碑同步；' +
+       '但如果对方设备没联网、或先删那边又同步回来，数据会"复活"。删除后确认各设备同步完成。'],
+      ['快照里存了我的题目内容吗？',
+       '没有。快照只记日期、条目数、估算体积、照片数。本页的 localStorage 扫描只列键名与长度，' +
+       '不把内容读进界面、不上传。'],
+      ['阈值设小了会怎样？',
+       '只影响本页的提醒文案（"照片偏多"之类），不触发任何自动清理。这个插件永远不会自动删东西。'],
+      ['统一面板打不开，是不是数据丢了？',
+       '不是。core/datamanage 晚加载或离线时面板会显示降级说明，上面的速览仍直接读 Store。' +
+       '刷新后重试；仍不行说明构建里缺那个模块，数据本身还在本机。'],
+      ['为什么故意不做面板（panel）？',
+       '历史教训：加面板会让用户以为存在两套清理口径。清理必须只有设置页一个入口，' +
+       '所以本插件注册了工具页与查询，但**没有 panels**（有测试钉住这条）。'],
+    ]
+    var out = []
+    out.push('<section class="' + NS + 'card"><h4>' + I('cpChat', '问') + ' 常见问题</h4>'
+      + faq.map(function (x, i) {
+        return '<details style="padding:8px 0;border-bottom:1px dashed var(--line)">'
+          + '<summary style="cursor:pointer;font-size:12.5px">' + (i + 1) + '. ' + esc(x[0]) + '</summary>'
+          + '<p style="font-size:12px;line-height:1.8;color:var(--text-secondary);margin:8px 0 0">' + esc(x[1]) + '</p></details>'
+      }).join('') + '</section>')
+    out.push('<section class="' + NS + 'card"><h4>本页的能力边界</h4>'
+      + '<div class="' + NS + 'note good"><div><b>只读体检 + 本机趋势 + 导出报告</b>'
+      + '不做：清理、修改 Store、上传、自动删除。'
+      + '需要动手时只有一条路：设置 → 数据清理，或本页总览下方的统一面板（同一个东西）。</div></div></section>')
+    return out.join('')
+  }
+
+
+var VIEWS = [
     { k: 'overview', t: '总览', f: viewOverview },
     { k: 'detail', t: '集合明细', f: viewDetail },
     { k: 'keys', t: '顶层键', f: viewKeys },
     { k: 'history', t: '趋势', f: viewHistory },
     { k: 'config', t: '设置', f: viewConfig },
+    { k: 'guide', t: '清理决策', f: viewGuide },
+    { k: 'terms', t: '术语', f: viewGlossary },
+    { k: 'faq', t: 'FAQ', f: viewFAQ },
   ]
 
   /* ══════════════ 5. Shell ══════════════ */
@@ -542,6 +647,16 @@
         if (d == null) return '快照不足，无法判断趋势。'
         return '本机条目总数近 7 天日均' + (d >= 0 ? '增加 ' : '减少 ') + Math.abs(d)
           + '（对比前 7 天）。照片日均 ' + (deltaOf(h, 'photos') || 0) + '。'
+      } },
+      { key: 'sd-clean', label: '清理前该做什么', run: function (ctx) {
+        return '清理前按顺序做三件事：1）确认云同步已完成（删除会走墓碑同步到其它设备）；'
+          + '2）需要的内容先导出备份；3）先小批量删 10 条确认正常再继续。'
+          + '清理入口只有一处：设置 → 数据清理（存储体检页下方统一面板同源）。'
+      } },
+      { key: 'sd-source', label: '体检数字的来源', run: function (ctx) {
+        return '存储体检的所有当前值都现读 Store.get() 与 localStorage，**不缓存**：'
+          + '集合条目数按数组长度或对象键数计；体积按 UTF-16 粗估，只用于排序找大头。'
+          + '精确占用以设置页数据区为准。插件只存条数/体积的逐日快照，不存任何条目标题或内容。'
       } },
       { key: 'sd-heavy', label: '占空间最大的集合', run: function (ctx) {
         var d = detailOf(ctx)

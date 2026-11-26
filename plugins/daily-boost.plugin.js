@@ -406,12 +406,85 @@
     return out.join('')
   }
 
+  /** 节奏视图：把"每天做了什么"汇总成周节律，回答"我是不是只在某几天用力"。
+   * 这是启发式视图，不给"你应该怎样"的说教，只把事实摆出来。 */
+  function viewRhythm(ctx, S) {
+    var out = []
+    var hist = S.hist
+    var byDay = {}
+    hist.forEach(function (x) { byDay[x.day] = x })
+    var days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+    var counts = [0, 0, 0, 0, 0, 0, 0], totals = [0, 0, 0, 0, 0, 0, 0]
+    hist.forEach(function (x) {
+      var d = new Date(x.day + 'T00:00:00')
+      if (isNaN(d.getTime())) return
+      var w = d.getDay()
+      counts[w]++
+      totals[w] += num(x.done)
+    })
+    var max = Math.max.apply(null, totals.concat([1]))
+    out.push('<section class="' + NS + 'card"><h4>' + I('barChart', '律') + ' 一周节律</h4>'
+      + '<p class="' + NS + 'sub" style="margin:0 0 10px">'
+      + '按星期几聚合快照：任务完成数的分布。样本还少时只当参考，别据此改计划。</p>'
+      + '<table class="' + NS + 'table"><thead><tr><th>星期</th><th>记录天数</th><th>平均完成</th><th>分布</th></tr></thead><tbody>'
+      + days.map(function (t, i) {
+        var avg = counts[i] ? Math.round(totals[i] / counts[i] * 10) / 10 : 0
+        var pct = Math.round(avg / max * 100)
+        return '<tr><td>' + t + '</td><td>' + counts[i] + '</td><td>' + avg + '</td>'
+          + '<td><div class="' + NS + 'bar" style="width:120px"><i style="width:' + pct + '%"></i></div></td></tr>'
+      }).join('') + '</tbody></table></section>')
+    var best = -1, worst = -1
+    days.forEach(function (_, i) {
+      if (!counts[i]) return
+      var avg = totals[i] / counts[i]
+      if (best < 0 || avg > totals[best] / counts[best]) best = i
+      if (worst < 0 || avg < totals[worst] / counts[worst]) worst = i
+    })
+    if (best >= 0 && worst >= 0 && best !== worst) {
+      out.push('<section class="' + NS + 'card"><h4>从节律里读出的</h4>'
+        + '<div class="' + NS + 'note info"><div><b>' + days[best] + '完成最多，' + days[worst] + '最少</b>'
+        + '（基于 ' + counts[best] + ' / ' + counts[worst] + ' 条快照）。'
+        + '如果这两天的任务量差不多，差别更可能来自状态而不是能力 —— 把难任务挪到' + days[best] + '试试。</div></div>'
+        + '<p class="' + NS + 'sub" style="margin:8px 0 0">这不是"你必须在哪天学习"的规定。'
+        + '它只说明过去这段时间你的实际分布。</p></section>')
+    }
+    return out.join('')
+  }
+
+  /** 口径视图：把每个数字"从哪来、什么时候会不准"写清楚。
+   * 动力面板最怕的就是"说你好好的，其实数据早就不对了"。 */
+  function viewSource(ctx, S) {
+    var out = []
+    var rows = [
+      ['距考研天数', 'settings.examDate → ctx.U.daysTo()', '没设考试日期时显示 0；0 不代表"今天考"，是"还没配"'],
+      ['今日任务', 'ctx.Store.todayTaskStats()', '按科目分组的 [完成, 总数]；跨天不清零时统计口径由站内决定'],
+      ['今日心情', 'Store.mental 里 date === 今天的记录', '没有记录时显示"今天还没记录心情"，不会拿昨天的顶上'],
+      ['连续打卡', 'ctx.Store.studyStreak()', '站内口径，插件原样显示，不自己算'],
+      ['冲刺节点', '固定的 100/80/60/30/14/7/1 天', '导航用的刻度，不是"你该到哪一步"的评价标准'],
+      ['变化判断', '插件本机快照（每天一条）', '至少 4 条才给判断；不足时明说不足，不编趋势'],
+    ]
+    out.push('<section class="' + NS + 'card"><h4>' + I('cpGear', '口') + ' 数字口径</h4>'
+      + '<table class="' + NS + 'table"><thead><tr><th>显示</th><th>来自</th><th>什么时候不准</th></tr></thead><tbody>'
+      + rows.map(function (r) {
+        return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td><td>' + esc(r[2]) + '</td></tr>'
+      }).join('') + '</tbody></table>'
+      + '<p class="' + NS + 'tip" style="margin-top:10px">这张表的用途：当你觉得"面板数字不对"时，'
+      + '先按这行去源头核对，而不是在这个插件里找不存在的设置。插件只做展示与本机历史。</p></section>')
+    out.push('<section class="' + NS + 'card"><h4>这个插件不做什么</h4>'
+      + '<div class="' + NS + 'note info"><div><b>不改任务、不改考试日期、不改连续打卡</b>'
+      + '唯一写入的是"今天的心情分数"（写进 Store.mental，与设置页同源）和本机快照。'
+      + '倒计时是提醒，不是催促；心情低分不会被自动改成"还行"。</div></div></section>')
+    return out.join('')
+  }
+
   var VIEWS = [
     { k: 'today', t: '今日', f: viewToday },
     { k: 'mood', t: '心情', f: viewMood },
     { k: 'journey', t: '里程', f: viewJourney },
     { k: 'history', t: '历史', f: viewHistory },
     { k: 'config', t: '设置', f: viewConfig },
+    { k: 'rhythm', t: '节律', f: viewRhythm },
+    { k: 'source', t: '口径', f: viewSource },
   ]
 
   /* ══════════════ 6. Shell ══════════════ */
@@ -644,6 +717,28 @@
         var m = milestoneOf(d.left)
         return '距初试 ' + d.left + ' 天' + (m ? '，已进入 ' + m.n + ' 天区间' : '') + '。'
           + (d.left <= 14 ? '这个阶段以查漏和保状态为主。' : d.left <= 60 ? '按套卷节奏练、固定时段。' : '还在基础补漏期，别急着追难题。')
+      } },
+      { key: 'db-rhythm', label: '一周节律', run: function (ctx) {
+        var h = historyGet(ctx)
+        if (h.length < 7) return '快照只有 ' + h.length + ' 条，样本不够判断星期节律。'
+        var days = ['周日','周一','周二','周三','周四','周五','周六']
+        var totals = [0,0,0,0,0,0,0], counts = [0,0,0,0,0,0,0]
+        h.forEach(function (x) {
+          var d = new Date(x.day + 'T00:00:00')
+          if (isNaN(d.getTime())) return
+          var w = d.getDay(); counts[w]++; totals[w] += num(x.done)
+        })
+        var best = -1
+        days.forEach(function (_, i) { if (counts[i] && (best < 0 || totals[i]/counts[i] > totals[best]/counts[best])) best = i })
+        return best < 0 ? '节律数据不足。' : '过去快照里 ' + days[best] + ' 平均完成任务最多；这只反映实际分布，不是安排建议。'
+      } },
+      { key: 'db-source', label: '动力面板数字的来源', run: function (ctx) {
+        return '倒计时取 settings.examDate，经 ctx.U.daysTo 计算；今日任务取 Store.todayTaskStats()；'
+          + '心情取 Store.mental 里当天那条；连续打卡取 Store.studyStreak()。'
+          + '本插件只写当天心情与本机快照，不改任务/考试日期/打卡。'
+      } },
+      { key: 'db-motto', label: '当前的每日一句', run: function (ctx) {
+        return '用户设置的每日一句：' + mottoOf(ctx) + '。（可在插件中心配置 motto：轮换 / 固定第一句 / 自定义。）'
       } },
       { key: 'db-task-trend', label: '每日完成任务变化', run: function (ctx) {
         var h = historyGet(ctx)

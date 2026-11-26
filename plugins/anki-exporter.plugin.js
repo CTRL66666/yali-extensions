@@ -307,12 +307,84 @@
     return out.join('')
   }
 
+  /** 质量视图：把"什么卡片在 Anki 里会变成废卡"讲透。
+   * 这个视图不导出、不修改，只解释 — 用户理解了口径才不会怪插件导出了空卡。 */
+  function viewQuality(ctx, S) {
+    var out = []
+    var l = S.lint
+    out.push('<section class="' + NS + 'card"><h4>' + I('cpWarn', '质') + ' 导出质量清单</h4>'
+      + '<table class="' + NS + 'table"><thead><tr><th>检查项</th><th>命中</th><th>为什么重要</th></tr></thead><tbody>'
+      + [['空正面', l.badFront, 'Anki 会导入但卡片正面是空的，复习时不知道问什么。'],
+        ['空背面', l.badBack, '想不起答案也翻不出东西 —— 这类卡最容易让人误以为"我会了"。'],
+        ['正面过长', l.longFront, '超过 1000 字在手机 Anki 上要滚好几屏，实际没法用。'],
+        ['含分号', l.semicolon, '本插件会把分号包进双引号，选「分号分隔」导入即可正确解析。']]
+        .map(function (r) {
+          return '<tr><td>' + esc(r[0]) + '</td><td><b>' + r[1] + '</b></td><td>' + esc(r[2]) + '</td></tr>'
+        }).join('') + '</tbody></table></section>')
+    out.push('<section class="' + NS + 'card"><h4>三类常见的"看起来对、其实废"的卡</h4>'
+      + '<div class="' + NS + 'note warn"><div><b>只有题干没有答案</b>'
+      + '错题本里有些条目只有 stem，answer/solution 都空 —— 导出正面有东西、背面空，'
+      + '复习时等于在猜。先回错题页补答案。</div></div>'
+      + '<div class="' + NS + 'note warn"><div><b>把整段解析塞进正面</b>'
+      + '如果题面字段本身就写了答案，正面会提前泄底。本插件正面只取 stem/desc + 选项，'
+      + '不会把 solution 混进去。</div></div>'
+      + '<div class="' + NS + 'note info"><div><b>LaTeX 在 Anki 里不渲染</b>'
+      + 'Anki 默认不走 KaTeX。公式若显示成原始 `$...$`，需要在 Anki 装 MathJax 插件，'
+      + '或导出前把公式转成图片（本插件不转换，保留原文以便可逆）。</div></div>'
+      + '</section>')
+    out.push('<section class="' + NS + 'card"><h4>可逆性</h4>'
+      + '<p class="' + NS + 'map" style="margin:0">导出是**只读取**操作：不改 Store、不改错题、不打标记。'
+      + '导出的 CSV 可以删掉重导，也可以随时用原数据重新生成。'
+      + '唯一写入的是本机的导出历史（只记文件名/条数/时间，不复制卡片内容）。</p></section>')
+    return out.join('')
+  }
+
+  /** 卡片设计指南：把"什么样的 Anki 卡值得做"写成可查的对照表。
+   * 导出器不该只管把数据倒出去 —— 导出的卡好不好用，才是用户真正关心的。 */
+  function viewDesign(ctx, S) {
+    var good = [
+      ['一卡一问', '正面只问一件事：「洛必达法则的适用条件是什么？」', '正面塞三道小题，复习时不知道该答哪个'],
+      ['答案可自洽', '背面写出完整推导，不写「见教材 P32」', '背面指向别处 → 复习时等于没有答案'],
+      ['题干带必要上下文', '给函数表达式和区间，不只写「求极限」', '脱离上下文的题面，忘了原题就答不出'],
+      ['易错点单独标', '背面末尾用「易错点：」标出陷阱', '把陷阱混进推导里，复习时抓不住重点'],
+      ['公式保留 LaTeX', '保留 $\\frac{a}{b}$ 原文，Anki 装 MathJax 后能渲染', '转成 Unicode 近似写法，长期看会走样'],
+    ]
+    var vocab = [
+      ['单词卡正面只放词', '正面：abate', '正面放「abate 的中文是什么」——多此一举'],
+      ['背面分层', '词性 / 释义 / 例句，三段分开', '一整段糊在一起，眼睛找不到重点'],
+      ['例句带语境', '例句能独立理解，不依赖原文', '例句里全是 it/this，忘了上下文就没用'],
+      ['不做近义词辨析卡', '辨析放笔记，卡片只记核心义', '近义词卡正面背面几乎一样，复习无收益'],
+    ]
+    var list = S.src === 'vocab' ? vocab : good
+    var out = []
+    out.push('<section class="' + NS + 'card"><h4>' + I('cpBrain', '卡') + ' 好卡 / 废卡对照（' + (S.src === 'vocab' ? '单词' : '错题') + '）</h4>'
+      + '<table class="' + NS + 'table"><thead><tr><th>原则</th><th>值得导出的样子</th><th>会变成废卡的样子</th></tr></thead><tbody>'
+      + list.map(function (r) {
+        return '<tr><td><b>' + esc(r[0]) + '</b></td><td>' + esc(r[1]) + '</td><td>' + esc(r[2]) + '</td></tr>'
+      }).join('') + '</tbody></table>'
+      + '<p class="' + NS + 'map" style="margin-top:10px">这张表不检查你的卡片，只是判断标准。'
+      + '导出前对照看一眼；真要改内容，回错题页/单词本改源头 —— 导出器只读不改。</p></section>')
+    out.push('<section class="' + NS + 'card"><h4>间隔复习的常识</h4>'
+      + '<div class="' + NS + 'note info"><div><b>Anki 的收益来自"快要忘时想起"</b>'
+      + '太早复习（刚记住就翻）几乎不产生记忆强度；太晚复习（全忘了）等于重学。'
+      + '所以别因为焦虑就手动把间隔调短。</div></div>'
+      + '<div class="' + NS + 'note info"><div><b>一次导出几千张不是好事</b>'
+      + 'Anki 的调度会被新卡淹没。建议按科目分册导入，每次几十到几百张，'
+      + '让"今日新卡上限"发挥作用。</div></div>'
+      + '<div class="' + NS + 'note warn"><div><b>本插件不替你决定导哪些</b>'
+      + '筛选关键词由你给，命中多少就列多少。它只保证"所见即所导"，'
+      + '不假装知道你哪些题真的掌握了。</div></div></section>')
+    return out.join('')
+  }
+
   var VIEWS = [
     { k: 'export', t: '导出', f: viewExport },
     { k: 'preview', t: '预览', f: viewPreview },
     { k: 'mapping', t: '映射', f: viewMapping },
     { k: 'history', t: '历史', f: viewHistory },
     { k: 'config', t: '设置', f: viewConfig },
+    { k: 'quality', t: '质量', f: viewQuality },
+    { k: 'design', t: '卡片设计', f: viewDesign },
   ]
 
   /* ══════════════ 5. Shell ══════════════ */
@@ -445,6 +517,11 @@
         if (!l.badFront && !l.badBack && !l.longFront) return '当前筛选下的卡片自检通过，没有空正面或空背面。'
         return '导出自检发现：空正面 ' + l.badFront + ' 条、空背面 ' + l.badBack + ' 条、正面过长 '
           + l.longFront + ' 条。建议先回原页补齐内容再导出。'
+      } },
+      { key: 'ak-format', label: 'Anki CSV 的格式约定', run: function (ctx) {
+        return 'Anki 导出器用分号分隔 CSV、字段包双引号、文件带 BOM（中文不乱码）。'
+          + '导入时选「分号」并勾选「允许 HTML」。正面是题面/单词，背面是答案+解析/释义+例句。'
+          + '导出是只读取操作，不改任何站内数据。'
       } },
       { key: 'ak-history', label: '最近导出记录', run: function (ctx) {
         var h = historyGet(ctx)

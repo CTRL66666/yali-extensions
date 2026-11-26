@@ -518,6 +518,74 @@
     return out.join('')
   }
 
+  /** 数据体检：找出会让"洞察"失真的脏数据。这是镜子，不是修数据的地方 ——
+   * 修数据要回原页（专注页/错题页），插件只报告，避免第三份写入口径。 */
+  function viewAudit(ctx, S) {
+    var out = []
+    var d = S.snap
+    var issues = []
+    var hours = d.raw || {}
+    var future = 0, negative = 0, huge = 0, todayKey = dkey()
+    Object.keys(hours).forEach(function (k) {
+      var v = num(hours[k])
+      if (/^\d{4}-\d{2}-\d{2}$/.test(k) && k > todayKey) future++
+      if (v < 0) negative++
+      if (v > 24) huge++
+    })
+    if (future) issues.push({ level: 'warn', title: future + ' 条未来日期的时长',
+      body: 'studyHours 里有晚于今天的日期。可能是时区或测试写入，会让"本周时长"虚高。回专注页核对。' })
+    if (negative) issues.push({ level: 'warn', title: negative + ' 条负数时长',
+      body: '负数时长会把日均拉低。这类数据本插件只读不改。' })
+    if (huge) issues.push({ level: 'warn', title: huge + ' 条超过 24 小时',
+      body: '单日时长不可能超过 24 小时。通常是把分钟当成小时写进去了。' })
+    if (!Object.keys(hours).length) issues.push({ level: 'info', title: '还没有学习时长记录',
+      body: '专注页完成一轮后这里才有数据。在那之前本插件不会用"虚构的 0"去做趋势判断。' })
+    if (d.tasks && d.done > d.tasks) issues.push({ level: 'warn', title: '完成任务数大于任务总数',
+      body: d.done + ' > ' + d.tasks + '。可能是任务被删除后计数没同步，完成率会失真。' })
+    if (!issues.length) issues.push({ level: 'good', title: '没发现明显脏数据',
+      body: '时长、任务、错题的基本形态都正常。这不能证明数据完整，只是没看到自相矛盾的值。' })
+    out.push('<section class="' + NS + 'card"><h4>' + I('cpWarn', '检') + ' 数据体检</h4>'
+      + issues.map(function (x) {
+        return '<div class="' + NS + 'note ' + esc(x.level) + '"><div><b>' + esc(x.title) + '</b>' + esc(x.body) + '</div></div>'
+      }).join('') + '</section>')
+    out.push('<section class="' + NS + 'card"><h4>口径对照表</h4>'
+      + '<table class="' + NS + 'table"><thead><tr><th>指标</th><th>来源</th><th>本插件是否改写</th></tr></thead><tbody>'
+      + [['当前时长', 'Store.studyHours', '只读'], ['任务完成', 'Store.tasks[].done', '只读'],
+        ['错题待回顾', 'Store.mistakes[].reviewedAt', '只读'], ['连续打卡', 'Store.studyStreak()', '只读'],
+        ['距考试', 'settings.examDate + U.daysTo', '只读'], ['历史快照', 'ctx.data(ipHistory)', '写（每天一条）']]
+        .map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td><td>' + esc(r[2]) + '</td></tr>' }).join('')
+      + '</tbody></table>'
+      + '<p class="muted-sm" style="font-size:11.5px;margin-top:10px">这张表存在的理由：'
+      + '用户问"你怎么算的"时，能当场回答，而不是含糊说"从数据里来的"。</p></section>')
+    return out.join('')
+  }
+
+  /** 提问示例：把"能问什么"摆出来。教练查询注册了不等于用户知道该问什么 ——
+   * 这一页把每条 query 配一句真实说法，点一下就能复制。 */
+  function viewAsk(ctx, S) {
+    var examples = [
+      { q: 'focusWeek', t: '我这周学了多久？', hint: '本周专注' },
+      { q: 'ip-trend', t: '最近学习是在变好还是变差？', hint: '学习趋势判断' },
+      { q: 'ip-todo', t: '接下来我最该做什么？', hint: '接下来该做什么' },
+      { q: 'ip-streak', t: '我连续打卡多少天了？背了多少词？', hint: '连续打卡与单词量' },
+      { q: 'ip-insights', t: '根据我的记录，有什么值得注意的？', hint: '学习洞察的关键判断' },
+      { q: 'ip-goal', t: '这周目标完成了多少？', hint: '本周目标达成率' },
+      { q: 'ip-exam', t: '还剩多少天，我准备得怎么样？', hint: '考前剩余与准备度' },
+      { q: 'ip-source', t: '你说的这些数字从哪来的？', hint: '洞察数字的数据来源' },
+      { q: 'ip-audit', t: '我的学习数据有没有问题？', hint: '洞察数据是否可信' },
+    ]
+    var out = []
+    out.push('<section class="' + NS + 'card"><h4>' + I('cpChat', '问') + ' 可以怎么问教练</h4>'
+      + '<p class="' + NS + 'tip">下面每句都对应本插件注册的一条查询。'
+      + '点「复制说法」后在教练里粘贴即可 —— 不用记查询 key。</p>'
+      + '<table class="' + NS + 'table"><thead><tr><th>你可以这样问</th><th>对应查询</th><th></th></tr></thead><tbody>'
+      + examples.map(function (x) {
+        return '<tr><td>' + esc(x.t) + '</td><td>' + esc(x.hint) + '</td>'
+          + '<td><button class="' + NS + 'btn" data-act="copy" data-v="' + esc(x.t) + '">复制说法</button></td></tr>'
+      }).join('') + '</tbody></table></section>')
+    return out.join('')
+  }
+
   var VIEWS = [
     { k: 'overview', t: '总览', f: viewOverview },
     { k: 'trend', t: '趋势', f: viewTrend },
@@ -525,6 +593,8 @@
     { k: 'history', t: '历史', f: viewHistory },
     { k: 'goals', t: '目标', f: viewGoals },
     { k: 'config', t: '设置', f: viewConfig },
+    { k: 'audit', t: '数据体检', f: viewAudit },
+    { k: 'ask', t: '怎么问', f: viewAsk },
   ]
 
   /* ══════════════ 6. Shell：状态 + 事件委托 ══════════════ */
@@ -625,6 +695,15 @@
       patch[key] = !S.cfg[key]
       S.cfg = cfgSet(ctx, patch)
       render(root, ctx, S)
+      return
+    }
+    if (act === 'copy') {
+      try {
+        if (navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          navigator.clipboard.writeText(String(value || '')).then(function () { toast(ctx, '说法已复制，去教练里粘贴', 'success') },
+            function () { toast(ctx, '复制失败，请手动选中', 'warn') })
+        } else toast(ctx, '当前环境不支持剪贴板，请手动选中', 'warn')
+      } catch (e) { toast(ctx, '复制失败，请手动选中', 'warn') }
       return
     }
     if (act === 'goto') {
@@ -810,6 +889,28 @@
         return '本周目标：专注 ' + fmtH(w.sum) + '/' + fmtH(c.goalHours) + '（' + Math.min(100, hp) + '%），'
           + '任务 ' + d.done + '/' + c.goalTasks + '（' + Math.min(100, tp) + '%）。'
           + '目标值可在插件页「目标」视图调整。'
+      } },
+      { key: 'ip-source', label: '洞察数字的数据来源', run: function (ctx) {
+        return '学习洞察的当前值全部现读本机 Store：学习时长取 studyHours，任务取 tasks[].done，'
+          + '错题待回顾取 mistakes[].reviewedAt，连续打卡取 studyStreak()，距考试取 settings.examDate。'
+          + '只有历史快照是插件自己存的（ctx.data，每天一条）。本插件不改写任何站内数据。'
+      } },
+      { key: 'ip-audit', label: '洞察数据是否可信', run: function (ctx) {
+        var d = snap(ctx), issues = []
+        var hours = d.raw || {}, todayKey = dkey()
+        var future = 0, neg = 0, huge = 0
+        Object.keys(hours).forEach(function (k) {
+          var v = num(hours[k])
+          if (/^\d{4}-\d{2}-\d{2}$/.test(k) && k > todayKey) future++
+          if (v < 0) neg++
+          if (v > 24) huge++
+        })
+        if (future) issues.push('未来日期时长 ' + future + ' 条')
+        if (neg) issues.push('负数时长 ' + neg + ' 条')
+        if (huge) issues.push('超 24 小时 ' + huge + ' 条')
+        if (d.tasks && d.done > d.tasks) issues.push('完成任务数大于总数')
+        return issues.length ? '数据体检发现问题：' + issues.join('、') + '。建议回原页核对，本插件只读不改。'
+          : '数据体检未发现自相矛盾的值；但这只说明形态正常，不代表数据完整。'
       } },
       { key: 'ip-exam', label: '考前剩余与准备度', run: function (ctx) {
         var d = snap(ctx)
