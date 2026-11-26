@@ -477,6 +477,20 @@
     return out.join('')
   }
 
+  /** 口径字典：把界面词与真实字段钉在一起，避免用户拿错口径做判断。 */
+  function viewDict(ctx, S) {
+    var rows = [["倒计时", "ctx.U.daysTo(settings.examDate)", "未配置日期返回 0，不是今天考"], ["今日任务", "Store.todayTaskStats() 按科目求和", "跨天口径由站内决定，插件不自己清零"], ["今日心情", "Store.mental 里 date 等于今天", "没有就显示未记录，不拿昨天的顶"], ["连续打卡", "Store.studyStreak()", "站内算法，插件不另算"], ["快照", "插件 ctx.data(dbHistory) 每天一条", "只存条数与分数，不存任务标题"]]
+    var out = []
+    out.push('<section class="' + NS + 'card"><h4>' + I('cpGear', '字') + ' 口径字典</h4>'
+      + '<table class="' + NS + 'table"><thead><tr><th>词</th><th>实际来源</th><th>注意</th></tr></thead><tbody>'
+      + rows.map(function (r) { return '<tr><td><b>' + esc(r[0]) + '</b></td><td>' + esc(r[1])
+        + '</td><td>' + esc(r[2]) + '</td></tr>' }).join('')
+      + '</tbody></table>'
+      + '<p class="' + NS + 'tip" style="margin-top:10px">这张表存在的意义：'
+      + '当数字看着不对时，先按表去源头核对，而不是在插件里找不存在的开关。</p></section>')
+    return out.join('')
+  }
+
   var VIEWS = [
     { k: 'today', t: '今日', f: viewToday },
     { k: 'mood', t: '心情', f: viewMood },
@@ -485,6 +499,7 @@
     { k: 'config', t: '设置', f: viewConfig },
     { k: 'rhythm', t: '节律', f: viewRhythm },
     { k: 'source', t: '口径', f: viewSource },
+    { k: 'dict', t: '字段字典', f: viewDict },
   ]
 
   /* ══════════════ 6. Shell ══════════════ */

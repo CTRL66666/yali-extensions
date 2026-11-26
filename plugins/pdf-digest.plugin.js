@@ -833,7 +833,7 @@
     })
   }
   function readAll(ctx, S, root, f) {
-    S.busy = true; S.err = ''; S.note = '正在本地解析《' + f.name + '》…'; S.note2 = ''
+    S.busy = true; S.err = ''; S.note = '正在本地解析《' + f.name + '》…'
     render(root, ctx, S)
     var p = window.PdfKit.open(f.data)
     return p.then(function (doc) {
@@ -853,7 +853,8 @@
     }).then(function (r) {
       var full = String((r && r.text) || '')
       var clipped = full.length > MAX_FEED
-      var text = cfgGet(ctx).keepText ? (clipped ? full.slice(0, MAX_FEED) : full) : ''
+      var fullText = clipped ? full.slice(0, MAX_FEED) : full
+      var keep = cfgGet(ctx).keepText
       var pagesMeta = (r && Array.isArray(r.pages) ? r.pages : []).slice(0, MAX_PAGE_ROWS).map(function (pg) {
         var t = String((pg && pg.text) || '')
         return { n: num(pg && pg.n, 0), hasText: !!t.trim(), chars: t.length, prev: flat(t).slice(0, 48) }
@@ -866,14 +867,18 @@
         chars: full.length,
         emptyPages: (r && Array.isArray(r.emptyPages)) ? r.emptyPages : [],
         clipped: clipped,
-        text: text,
+        text: fullText,
         pagesMeta: pagesMeta,
         digest: null
       }
+      /* keepText=false：本次会话仍可提炼，但原文不写进 ctx.data */
+      var stored = null
+      if (keep) stored = docObj
+      else { stored = normalizeDoc(docObj); stored.text = '' }
       if (cfgGet(ctx).autoSave) {
-        S.docs = upsertDoc(ctx, docObj)
+        S.docs = upsertDoc(ctx, stored)
       } else {
-        S.docs = docsGet(ctx).concat([docObj]).sort(function (a, b) { return b.at - a.at }).slice(0, MAX_DOCS)
+        S.docs = docsGet(ctx).concat([stored]).sort(function (a, b) { return b.at - a.at }).slice(0, MAX_DOCS)
       }
       S.curId = docObj.id
       S.cur = findDoc(S.docs, docObj.id)
@@ -883,6 +888,7 @@
       }
       try { if (ctx.keep && typeof ctx.keep.set === 'function') ctx.keep.set(K_LAST_ID, docObj.id) } catch (e) { }
       refresh(ctx, S)
+      if (!keep && S.cur) S.cur.text = fullText
       render(root, ctx, S)
     }).catch(function (e) {
       S.busy = false
@@ -922,7 +928,9 @@
         return
       }
       cur.digest = normalizeDigest(d)
-      S.docs = upsertDoc(ctx, cur)
+      var toSave = cur
+      if (!cfgGet(ctx).keepText) { toSave = normalizeDoc(cur); toSave.text = '' }
+      S.docs = upsertDoc(ctx, toSave)
       S.cur = findDoc(S.docs, cur.id)
       S.curId = cur.id
       S.hist = recordHistory(ctx, S.cur)
@@ -1018,10 +1026,10 @@
       ctx.Toast.show('教练面板还没就绪，稍后再试', 'warn', 2500)
     }
   }
-  function askNote(ctx, S, kind) {
+  function askNote(ctx, S, kind, root) {
     if (!S.cur) return
     var input = null
-    try { input = document.querySelector('.' + NS + 'txt[data-act="note-input"]') } catch (e) { }
+    try { input = root && root.querySelector ? root.querySelector('.' + NS + 'txt[data-act="note-input"]') : null } catch (e) { }
     var text = flat(input && input.value ? input.value : '')
     var d = S.cur.digest
     var head = '我在读讲义《' + S.cur.name + '》（本机解析 ' + S.cur.pagesCount + ' 页）。'
@@ -1097,7 +1105,7 @@
       render(root, ctx, S)
       return
     }
-    if (act === 'note-ask') { askNote(ctx, S, v); return }
+    if (act === 'note-ask') { askNote(ctx, S, v, root); return }
     if (act === 'note-del') {
       if (!S.cur) return
       S.notes = notesDel(ctx, S.cur.id, v)
@@ -1106,9 +1114,9 @@
       return
     }
     if (act === 'cfg-pages' || act === 'cfg-kind') return
-    if (act === 'cfg-auto') { S.cfg = cfgLocalSet(ctx, { autoSave: !S.cfg.autoSave }); render(root, ctx, S); return }
-    if (act === 'cfg-text') { S.cfg = cfgLocalSet(ctx, { keepText: !S.cfg.keepText }); render(root, ctx, S); return }
-    if (act === 'cfg-panel') { S.cfg = cfgLocalSet(ctx, { showPanel: !S.cfg.showPanel }); render(root, ctx, S); return }
+    if (act === 'cfg-auto') { S.cfg = cfgBoolSet(ctx, 'autoSave', !S.cfg.autoSave); render(root, ctx, S); return }
+    if (act === 'cfg-text') { S.cfg = cfgBoolSet(ctx, 'keepText', !S.cfg.keepText); render(root, ctx, S); return }
+    if (act === 'cfg-panel') { S.cfg = cfgBoolSet(ctx, 'showPanel', !S.cfg.showPanel); render(root, ctx, S); return }
     if (act === 'clear-history') {
       if (!okToContinue(ctx, '清空 ' + S.hist.length + ' 条提炼历史？不能撤销。')) return
       S.hist = historySave(ctx, [])

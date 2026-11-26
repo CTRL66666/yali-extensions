@@ -586,6 +586,29 @@
     return out.join('')
   }
 
+  /** 术语表：把仪表盘上的词和它背后的 Store 字段一一对应。
+   * 用户说"时长不对"时，最有效的回复是"你看到的 X 来自 Y 字段"，而不是争辩。 */
+  function viewTerms(ctx, S) {
+    var rows = [
+      ['本周时长', 'studyHours 的全部键求和 × 60 分钟', '名字叫"本周"但算法是**全部记录**。字段里没有分周结构，插件不假装能做到。'],
+      ['任务完成', 'tasks 数组里 done === true 的条数', '与排程页「今日任务」不是同一口径；这里是全量 tasks。'],
+      ['错题待回顾', 'mistakes 里 reviewedAt 为空的条数', 'reviewedAt 由错题页写，插件只读。'],
+      ['拍题待复习', 'mistakePhotos 里有 reviewPlan 且 D1/3/7/15 未全勾', '粗筛，界面标"约"。精确到期判定在 core/photoReview。'],
+      ['连续打卡', 'Store.studyStreak()', '站内算法，插件原样显示；不在插件里另算一份。'],
+      ['距考试', 'settings.examDate → ctx.U.daysTo()', '没设日期时为 0，0 表示"未配置"不是"今天考"。'],
+      ['历史快照', 'ctx.data(ipHistory) 每天一条', '只有这个字段是插件写的；最多 180 条，超出丢最老。'],
+    ]
+    var out = []
+    out.push('<section class="' + NS + 'card"><h4>' + I('cpGear', '词') + ' 术语与字段对照</h4>'
+      + '<table class="' + NS + 'table"><thead><tr><th>界面上的词</th><th>实际算法</th><th>容易误读的地方</th></tr></thead><tbody>'
+      + rows.map(function (r) { return '<tr><td><b>' + esc(r[0]) + '</b></td><td>' + esc(r[1]) + '</td><td>' + esc(r[2]) + '</td></tr>' }).join('')
+      + '</tbody></table>'
+      + '<p class="' + NS + 'tip" style="margin-top:10px">这张表是插件给自己写的"免责声明"：'
+      + '名字里带"本周"不一定真是本周，带"待复习"不一定精确。'
+      + '把口径摊开，比把数字做得好看更重要。</p></section>')
+    return out.join('')
+  }
+
   var VIEWS = [
     { k: 'overview', t: '总览', f: viewOverview },
     { k: 'trend', t: '趋势', f: viewTrend },
@@ -595,6 +618,7 @@
     { k: 'config', t: '设置', f: viewConfig },
     { k: 'audit', t: '数据体检', f: viewAudit },
     { k: 'ask', t: '怎么问', f: viewAsk },
+    { k: 'terms', t: '术语', f: viewTerms },
   ]
 
   /* ══════════════ 6. Shell：状态 + 事件委托 ══════════════ */

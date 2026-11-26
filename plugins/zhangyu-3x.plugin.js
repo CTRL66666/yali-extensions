@@ -722,8 +722,8 @@
     out.push('<div class="' + NS + 'point">' + esc(ex.point) + '</div>')
     out.push('<div class="' + NS + 'acts">'
       + '<button class="' + NS + 'btn' + (used ? ' pri' : '') + '" data-act="use" data-v="' + esc(ex.id) + '">' + (used ? '已用过 · 再记一次' : '标记用过') + '</button>'
-      + '<button class="' + NS + 'btn' + (fb === 'up' ? ' on' : '') + '" data-act="fb" data-v="' + esc(ex.id) + '" data-fb="up">点赞' + (fb === 'up' ? ' ✓' : '') + '</button>'
-      + '<button class="' + NS + 'btn' + (fb === 'down' ? ' on' : '') + '" data-act="fb" data-v="' + esc(ex.id) + '" data-fb="down">点踩' + (fb === 'down' ? ' ✓' : '') + '</button>'
+      + '<button class="' + NS + 'btn' + (fb === 'up' ? ' on' : '') + '" data-act="fb" data-v="' + esc(ex.id) + '" data-fb="up">点赞' + (fb === 'up' ? ' 已' : '') + '</button>'
+      + '<button class="' + NS + 'btn' + (fb === 'down' ? ' on' : '') + '" data-act="fb" data-v="' + esc(ex.id) + '" data-fb="down">点踩' + (fb === 'down' ? ' 已' : '') + '</button>'
       + '</div></div>')
     return out.join('')
   }

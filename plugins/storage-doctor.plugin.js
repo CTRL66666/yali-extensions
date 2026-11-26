@@ -456,6 +456,20 @@
   }
 
 
+  /** 字段字典：把"体检数字"与它背后的真实字段钉在一起。 */
+  function viewDict(ctx, S) {
+    var rows = [["Store 集合", "站内数据结构，可能落 LS 或 IDB", "设置页数据区标注落点，本页只列条数"], ["墓碑", "删除标记，随云同步传播", "直接清 LS 不留墓碑，别的设备会恢复"], ["估算体积", "JSON 序列化后 UTF-16 长度", "只用于找大头，不等于磁盘占用"], ["统一面板", "core/datamanage 的共享 UI", "本页下方那个与设置页是同一个，不是两套"]]
+    var out = []
+    out.push('<section class="' + NS + 'card"><h4>' + I('cpGear', '字') + ' 字段字典</h4>'
+      + '<table class="' + NS + 'table"><thead><tr><th>词</th><th>实际来源</th><th>注意</th></tr></thead><tbody>'
+      + rows.map(function (r) { return '<tr><td><b>' + esc(r[0]) + '</b></td><td>' + esc(r[1])
+        + '</td><td>' + esc(r[2]) + '</td></tr>' }).join('')
+      + '</tbody></table>'
+      + '<p class="' + NS + 'tip" style="margin-top:10px">当数字看着不对时，先按表去源头核对，'
+      + '而不是在插件里找不存在的开关：本页只有只读体检，没有第二个清理入口。</p></section>')
+    return out.join('')
+  }
+
 var VIEWS = [
     { k: 'overview', t: '总览', f: viewOverview },
     { k: 'detail', t: '集合明细', f: viewDetail },
@@ -465,6 +479,7 @@ var VIEWS = [
     { k: 'guide', t: '清理决策', f: viewGuide },
     { k: 'terms', t: '术语', f: viewGlossary },
     { k: 'faq', t: 'FAQ', f: viewFAQ },
+    { k: 'dict', t: '字段字典', f: viewDict },
   ]
 
   /* ══════════════ 5. Shell ══════════════ */

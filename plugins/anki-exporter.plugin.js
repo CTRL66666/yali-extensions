@@ -377,6 +377,20 @@
     return out.join('')
   }
 
+  /** 字段字典：把界面词与真实字段钉在一起，避免用户拿错口径做判断。 */
+  function viewDict(ctx, S) {
+    var rows = [["正面", "mistakes.stem/desc + options（可选）", "不含 solution，避免泄底"], ["背面", "answer + solution + trap（可选）", "三段用分隔线分层，复习时层次清楚"], ["单词正面", "vocab.word", "只放词，不放中文提示"], ["单词背面", "pos + meaning + example", "三段各占一行"], ["CSV 编码", "分号分隔 + 双引号 + BOM", "Anki 导入选分号并勾允许 HTML"]]
+    var out = []
+    out.push('<section class="' + NS + 'card"><h4>' + I('cpGear', '字') + ' 字段字典</h4>'
+      + '<table class="' + NS + 'table"><thead><tr><th>词</th><th>实际来源</th><th>注意</th></tr></thead><tbody>'
+      + rows.map(function (r) { return '<tr><td><b>' + esc(r[0]) + '</b></td><td>' + esc(r[1])
+        + '</td><td>' + esc(r[2]) + '</td></tr>' }).join('')
+      + '</tbody></table>'
+      + '<p class="' + NS + 'tip" style="margin-top:10px">这张表存在的意义：'
+      + '当数字看着不对时，先按表去源头核对，而不是在插件里找不存在的开关。</p></section>')
+    return out.join('')
+  }
+
   var VIEWS = [
     { k: 'export', t: '导出', f: viewExport },
     { k: 'preview', t: '预览', f: viewPreview },
@@ -385,6 +399,7 @@
     { k: 'config', t: '设置', f: viewConfig },
     { k: 'quality', t: '质量', f: viewQuality },
     { k: 'design', t: '卡片设计', f: viewDesign },
+    { k: 'dict', t: '字段字典', f: viewDict },
   ]
 
   /* ══════════════ 5. Shell ══════════════ */
